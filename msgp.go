@@ -1,32 +1,12 @@
-package main
+package msgp
 
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"math"
 	"reflect"
 )
-
-type mySt struct {
-}
-
-func main() {
-	for _, v := range []interface{}{"hi", 42, func() {}, mySt{}, nil} {
-		switch v := reflect.ValueOf(v); v.Kind() {
-		case reflect.String:
-			fmt.Println(v.String())
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			fmt.Println(v.Int())
-		case reflect.Struct:
-			fmt.Println("Struct")
-		default:
-			fmt.Printf("unhandled kind '%s'\n", v.Kind())
-		}
-	}
-
-}
 
 // PackValue serialize a value.
 func PackValue(w io.Writer, value interface{}) (err error) {
@@ -37,9 +17,25 @@ func PackValue(w io.Writer, value interface{}) (err error) {
 	switch reflect.ValueOf(value).Kind() {
 	case reflect.Bool:
 		err = PackBool(w, value.(bool))
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int:
+		err = PackInt(w, int64(value.(int)))
+	case reflect.Int8:
+		err = PackInt(w, int64(value.(int8)))
+	case reflect.Int16:
+		err = PackInt(w, int64(value.(int16)))
+	case reflect.Int32:
+		err = PackInt(w, int64(value.(int32)))
+	case reflect.Int64:
 		err = PackInt(w, value.(int64))
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint:
+		err = PackUint(w, uint64(value.(uint)))
+	case reflect.Uint8:
+		err = PackUint(w, uint64(value.(uint8)))
+	case reflect.Uint16:
+		err = PackUint(w, uint64(value.(uint16)))
+	case reflect.Uint32:
+		err = PackUint(w, uint64(value.(uint32)))
+	case reflect.Uint64:
 		err = PackUint(w, value.(uint64))
 	case reflect.Float32:
 		err = PackFloat32(w, value.(float32))
@@ -221,11 +217,11 @@ func PackMap(w io.Writer, value interface{}) error {
 	}
 
 	for _, key := range m.MapKeys() {
-		err := PackValue(&buf, key)
+		err := PackValue(&buf, key.Interface())
 		if err != nil {
 			return err
 		}
-		err = PackValue(&buf, m.MapIndex(key))
+		err = PackValue(&buf, m.MapIndex(key).Interface())
 		if err != nil {
 			return err
 		}

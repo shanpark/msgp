@@ -1,4 +1,4 @@
-package main
+package msgp
 
 import (
 	"bytes"
@@ -102,4 +102,31 @@ func ExamplePackString() {
 	// Output:
 	// bf 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31
 	// d9 20 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32
+}
+
+type structType struct {
+	AAA string
+	BBB int32
+}
+
+func ExamplePackStruct() {
+	var buf bytes.Buffer
+	var str = structType{"1234567890", 0xff}
+
+	PackStruct(&buf, str)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	// Output:
+	// 82 a3 41 41 41 aa 31 32 33 34 35 36 37 38 39 30 a3 42 42 42 d1 00 ff
+}
+
+func ExamplePackMap() {
+	var buf bytes.Buffer
+	m := map[string]int{"aaa": 1, "bbb": 2}
+
+	PackMap(&buf, m)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	// Output:
+	// 82 a3 61 61 61 01 a3 62 62 62 02
 }
