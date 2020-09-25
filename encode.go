@@ -3,6 +3,7 @@ package msgp
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"reflect"
@@ -49,6 +50,8 @@ func PackValue(w io.Writer, value interface{}) (err error) {
 		err = PackMap(w, value)
 	case reflect.Array, reflect.Slice:
 		err = PackArray(w, value)
+	case reflect.Ptr:
+		err = PackPtr(w, value)
 	}
 
 	return err
@@ -169,34 +172,70 @@ func PackString(w io.Writer, value string) error {
 
 // PackStruct writes a struct data to writer.
 func PackStruct(w io.Writer, value interface{}) error {
-	var buf bytes.Buffer
+	var headBuf bytes.Buffer
+	var dataBuf bytes.Buffer
+	var err error
 
-	st := reflect.TypeOf(value)
-	numField := st.NumField()
+	structType := reflect.TypeOf(value)
+	structValue := reflect.ValueOf(value)
+	structNumField := structType.NumField()
+
+	numField := uint32(0)
+	for inx := 0; inx < structNumField; inx++ {
+		var fp FieldProp
+
+		field := structType.Field(inx)
+		fp.parseTag(field)
+		if fp.Skip {
+			continue
+		}
+
+		fieldValue := structValue.Field(inx)
+		if fp.OmitEmpty {
+			if fieldValue.Interface() == reflect.Zero(fieldValue.Type()).Interface() {
+				continue
+			}
+		}
+
+		if err = PackString(&dataBuf, fp.Name); err != nil {
+			return err
+		}
+
+		if fp.String {
+			switch fieldValue.Kind() {
+			case reflect.Bool,
+				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+				reflect.Float32, reflect.Float64:
+				err = PackString(&dataBuf, fmt.Sprintf("%v", fieldValue.Interface()))
+			default:
+				err = PackValue(&dataBuf, fieldValue.Interface())
+			}
+		} else {
+			err = PackValue(&dataBuf, fieldValue.Interface())
+		}
+		if err != nil {
+			return err
+		}
+
+		numField++
+	}
+
 	if numField <= 0x0f {
-		buf.WriteByte(0x80 | uint8(numField))
+		headBuf.WriteByte(0x80 | uint8(numField))
 	} else if numField <= 0xffff {
-		buf.WriteByte(0xde)
-		binary.Write(&buf, binary.BigEndian, uint16(numField))
+		headBuf.WriteByte(0xde)
+		binary.Write(&headBuf, binary.BigEndian, uint16(numField))
 	} else if numField <= 0xffffffff {
-		buf.WriteByte(0xdf)
-		binary.Write(&buf, binary.BigEndian, uint32(numField))
+		headBuf.WriteByte(0xdf)
+		binary.Write(&headBuf, binary.BigEndian, uint32(numField))
 	}
 
-	for inx := 0; inx < numField; inx++ {
-		field := st.Field(inx)
-		err := PackString(&buf, field.Name)
-		if err != nil {
-			return err
-		}
-
-		err = PackValue(&buf, reflect.ValueOf(value).Field(inx).Interface())
-		if err != nil {
-			return err
-		}
+	if _, err = w.Write(headBuf.Bytes()); err != nil {
+		return err
 	}
 
-	_, err := w.Write(buf.Bytes())
+	_, err = w.Write(dataBuf.Bytes())
 	return err
 }
 
@@ -235,6 +274,29 @@ func PackMap(w io.Writer, value interface{}) error {
 func PackArray(w io.Writer, value interface{}) error {
 	var buf bytes.Buffer
 
+	if reflect.TypeOf(value).Elem().Kind() == reflect.Uint8 { // for []byte
+		b := reflect.ValueOf(value)
+		arraySize := b.Len()
+		if arraySize <= 0xff {
+			buf.WriteByte(0xc4)
+			binary.Write(&buf, binary.BigEndian, uint8(arraySize))
+		} else if arraySize <= 0xffff {
+			buf.WriteByte(0xc5)
+			binary.Write(&buf, binary.BigEndian, uint16(arraySize))
+		} else if arraySize <= 0xffffffff {
+			buf.WriteByte(0xc6)
+			binary.Write(&buf, binary.BigEndian, uint32(arraySize))
+		}
+
+		_, err := w.Write(buf.Bytes())
+		if err != nil {
+			return err
+		}
+
+		_, err = w.Write(value.([]byte))
+		return err
+	}
+
 	a := reflect.ValueOf(value)
 	arraySize := a.Len()
 	if arraySize <= 0x0f {
@@ -253,4 +315,9 @@ func PackArray(w io.Writer, value interface{}) error {
 
 	_, err := w.Write(buf.Bytes())
 	return err
+}
+
+// PackPtr writes the data pointed by ptr to writer.
+func PackPtr(w io.Writer, value interface{}) error {
+	return PackValue(w, reflect.ValueOf(value).Elem().Interface())
 }

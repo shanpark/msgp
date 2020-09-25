@@ -106,18 +106,24 @@ func ExamplePackString() {
 
 type structType struct {
 	AAA string
-	BBB int32
+	BBB int
+	CCC string `msgp:"ccc"`
+	DDD int    `msgp:"-"`
+	FFF int32  `msgp:"-,omitempty"`
+	GGG int32  `msgp:",omitempty"`
+	HHH int32  `msgp:",string"`
+	III int32  `msgp:",omitempty"`
 }
 
 func ExamplePackStruct() {
 	var buf bytes.Buffer
-	var str = structType{"1234567890", 0xff}
+	var str = structType{"1234567890", 0xff, "12345", 0x11, 0x22, 0x33, 100, 0}
 
 	PackStruct(&buf, str)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// Output:
-	// 82 a3 41 41 41 aa 31 32 33 34 35 36 37 38 39 30 a3 42 42 42 d1 00 ff
+	// 86 a3 41 41 41 aa 31 32 33 34 35 36 37 38 39 30 a3 42 42 42 d1 00 ff a3 63 63 63 a5 31 32 33 34 35 a1 5f 22 a3 47 47 47 33 a3 48 48 48 a3 31 30 30
 }
 
 func ExamplePackMap() {
@@ -129,4 +135,54 @@ func ExamplePackMap() {
 
 	// Output:
 	// 82 a3 61 61 61 01 a3 62 62 62 02
+}
+
+func ExamplePackArray() {
+	var buf bytes.Buffer
+	a := []string{"aaa", "bbb", "ccc"}
+	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+
+	PackArray(&buf, a)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	buf.Reset()
+
+	PackArray(&buf, b)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	// Output:
+	// 93 a3 61 61 61 a3 62 62 62 a3 63 63 63
+	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
+}
+
+func ExamplePackPtr() {
+	var buf bytes.Buffer
+	a := []string{"aaa", "bbb", "ccc"}
+	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	m := map[string]int{"aaa": 1, "bbb": 2}
+	var str = structType{"1234567890", 0xff, "12345", 0x11, 0x22, 0x33, 100, 0}
+
+	PackPtr(&buf, &a)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	buf.Reset()
+
+	PackPtr(&buf, &b)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	buf.Reset()
+
+	PackPtr(&buf, &m)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	buf.Reset()
+
+	PackPtr(&buf, &str)
+	fmt.Printf("% x\n", buf.Bytes())
+
+	// Output:
+	// 93 a3 61 61 61 a3 62 62 62 a3 63 63 63
+	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
+	// 82 a3 61 61 61 01 a3 62 62 62 02
+	// 86 a3 41 41 41 aa 31 32 33 34 35 36 37 38 39 30 a3 42 42 42 d1 00 ff a3 63 63 63 a5 31 32 33 34 35 a1 5f 22 a3 47 47 47 33 a3 48 48 48 a3 31 30 30
 }
