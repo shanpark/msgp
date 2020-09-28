@@ -30,8 +30,11 @@ func ExamplePackInt() {
 	var buf bytes.Buffer
 
 	PackInt(&buf, 0x7f)
+	PackInt(&buf, 0x80)
 	PackInt(&buf, 0x7fff)
+	PackInt(&buf, 0x8000)
 	PackInt(&buf, 0x7fffffff)
+	PackInt(&buf, 0x80000000)
 	PackInt(&buf, 0x7fffffffffffffff)
 
 	fmt.Printf("% x\n", buf.Bytes())
@@ -46,7 +49,7 @@ func ExamplePackInt() {
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// Output:
-	// 7f d1 7f ff d2 7f ff ff ff d3 7f ff ff ff ff ff ff ff
+	// 7f cc 80 d1 7f ff cd 80 00 d2 7f ff ff ff ce 80 00 00 00 d3 7f ff ff ff ff ff ff ff
 	// d0 80 d1 80 00 d2 80 00 00 00 d3 80 00 00 00 00 00 00 00
 }
 
@@ -128,19 +131,20 @@ func ExamplePackStruct() {
 
 func ExamplePackMap() {
 	var buf bytes.Buffer
-	m := map[string]int{"aaa": 1, "bbb": 2}
+	m := map[string]int{"aaa": 1}
 
 	PackMap(&buf, m)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// Output:
-	// 82 a3 61 61 61 01 a3 62 62 62 02
+	// 81 a3 61 61 61 01
 }
 
 func ExamplePackArray() {
 	var buf bytes.Buffer
 	a := []string{"aaa", "bbb", "ccc"}
 	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	c := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
 	PackArray(&buf, a)
 	fmt.Printf("% x\n", buf.Bytes())
@@ -150,8 +154,14 @@ func ExamplePackArray() {
 	PackArray(&buf, b)
 	fmt.Printf("% x\n", buf.Bytes())
 
+	buf.Reset()
+
+	PackArray(&buf, c)
+	fmt.Printf("% x\n", buf.Bytes())
+
 	// Output:
 	// 93 a3 61 61 61 a3 62 62 62 a3 63 63 63
+	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
 	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
 }
 
@@ -159,7 +169,7 @@ func ExamplePackPtr() {
 	var buf bytes.Buffer
 	a := []string{"aaa", "bbb", "ccc"}
 	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
-	m := map[string]int{"aaa": 1, "bbb": 2}
+	m := map[string]int{"aaa": 1}
 	var str = structType{"1234567890", 0xff, "12345", 0x11, 0x22, 0x33, 100, 0}
 
 	PackPtr(&buf, &a)
@@ -183,6 +193,6 @@ func ExamplePackPtr() {
 	// Output:
 	// 93 a3 61 61 61 a3 62 62 62 a3 63 63 63
 	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
-	// 82 a3 61 61 61 01 a3 62 62 62 02
+	// 81 a3 61 61 61 01
 	// 86 a3 41 41 41 aa 31 32 33 34 35 36 37 38 39 30 a3 42 42 42 d1 00 ff a3 63 63 63 a5 31 32 33 34 35 a1 5f 22 a3 47 47 47 33 a3 48 48 48 a3 31 30 30
 }
