@@ -144,6 +144,7 @@ func ExamplePackArray() {
 	var buf bytes.Buffer
 	a := []string{"aaa", "bbb", "ccc"}
 	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	c := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
 	PackArray(&buf, a)
 	fmt.Printf("% x\n", buf.Bytes())
@@ -153,8 +154,14 @@ func ExamplePackArray() {
 	PackArray(&buf, b)
 	fmt.Printf("% x\n", buf.Bytes())
 
+	buf.Reset()
+
+	PackArray(&buf, c)
+	fmt.Printf("% x\n", buf.Bytes())
+
 	// Output:
 	// 93 a3 61 61 61 a3 62 62 62 a3 63 63 63
+	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
 	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
 }
 

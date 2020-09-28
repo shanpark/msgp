@@ -308,7 +308,7 @@ func PackStruct(w io.Writer, value interface{}) error {
 
 	numField := uint32(0)
 	for inx := 0; inx < structNumField; inx++ {
-		var fp FieldProp
+		var fp FieldProps
 
 		field := structType.Field(inx)
 		fp.parseTag(field)

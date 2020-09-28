@@ -5,15 +5,15 @@ import (
 	"strings"
 )
 
-// FieldProp
-type FieldProp struct {
+// FieldProps represents field properties of struct for struct packing.
+type FieldProps struct {
 	Name      string
 	Skip      bool
 	OmitEmpty bool
 	String    bool
 }
 
-func (fp *FieldProp) parseTag(field reflect.StructField) {
+func (fp *FieldProps) parseTag(field reflect.StructField) {
 	name, opts := parseTag(field.Tag.Get("msgp"))
 	if name == "-" {
 		if strings.TrimSpace(string(opts)) == "" {
