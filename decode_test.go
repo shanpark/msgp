@@ -6,15 +6,110 @@ import (
 )
 
 func ExampleUnpackValue_nil() {
+	var err error
 	var buf bytes.Buffer
-	var val interface{}
+
+	var s string
+	var ba [1]byte
+	var bs []byte
+	var m map[string]int
+	var pb *bool
+	var unknown interface{}
+
+	if IsLittleEndian() {
+		fmt.Println("Little")
+	} else {
+		fmt.Println("Big")
+	}
 
 	PackNil(&buf)
-	UnpackValue(&buf, &val)
-	fmt.Printf("%v\n", val)
+	err = UnpackValue(&buf, &s)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", s)
+	}
+
+	PackNil(&buf)
+	err = UnpackValue(&buf, &ba)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", ba)
+	}
+
+	PackNil(&buf)
+	err = UnpackValue(&buf, &bs)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", bs)
+	}
+
+	PackNil(&buf)
+	err = UnpackValue(&buf, &m)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", m)
+	}
+
+	PackNil(&buf)
+	err = UnpackValue(&buf, &pb)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", *pb)
+	}
+
+	PackNil(&buf)
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
 
 	// Output:
-	// <nil>
+	//
+	// [0]
+	// []
+	// map[]
+	// false
+	// msgp: specified type[interface] is not supported
+}
+
+func ExampleUnpackValue_bool() {
+	var err error
+	var buf bytes.Buffer
+	var val bool
+
+	PackBool(&buf, true)
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+	PackBool(&buf, false)
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+	PackNil(&buf)
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+
+	// Output:
+	// true
+	// false
+	// false
 }
 
 func ExampleUnpackValue_int() {
@@ -25,6 +120,7 @@ func ExampleUnpackValue_int() {
 	var i16 int16
 	var i32 int32
 	var i64 int64
+	var ui uint
 	var ui8 uint8
 	var ui16 uint16
 	var ui32 uint32
@@ -65,11 +161,11 @@ func ExampleUnpackValue_int() {
 	}
 
 	PackNil(&buf)
-	err = UnpackValue(&buf, &i8)
+	err = UnpackValue(&buf, &ui)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%x\n", i)
+		fmt.Printf("%x\n", ui)
 	}
 
 	// Output:
@@ -81,6 +177,42 @@ func ExampleUnpackValue_int() {
 	// ffff
 	// ffffffff
 	// ffffffffffffffff
-	// msgp: unpacked value[<nil>] is not assignable to integer type
-	// msgp: unpacked value[<nil>] is not assignable to integer type
+	// 0
+	// 0
+}
+
+func ExampleUnpackValue_float() {
+	var err error
+	var buf bytes.Buffer
+	var f32 float32
+	var f64 float64
+
+	PackFloat32(&buf, 3.14)
+	err = UnpackValue(&buf, &f32)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", f32)
+	}
+
+	PackFloat64(&buf, 3.14)
+	err = UnpackValue(&buf, &f64)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", f64)
+	}
+
+	PackNil(&buf)
+	err = UnpackValue(&buf, &f64)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", f64)
+	}
+
+	// Output:
+	// 3.14
+	// 3.14
+	// 0
 }

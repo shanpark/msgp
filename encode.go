@@ -221,7 +221,7 @@ func PackFloat32(w io.Writer, value float32) error {
 	if err = buf.WriteByte(0xca); err != nil {
 		return err
 	}
-	if err = binary.Write(&buf, binary.BigEndian, math.Float32bits(value)); err != nil {
+	if err = binary.Write(&buf, binary.LittleEndian, math.Float32bits(value)); err != nil {
 		return err
 	}
 
@@ -237,7 +237,7 @@ func PackFloat64(w io.Writer, value float64) error {
 	if err = buf.WriteByte(0xcb); err != nil {
 		return err
 	}
-	if err = binary.Write(&buf, binary.BigEndian, math.Float64bits(value)); err != nil {
+	if err = binary.Write(&buf, binary.LittleEndian, math.Float64bits(value)); err != nil {
 		return err
 	}
 
