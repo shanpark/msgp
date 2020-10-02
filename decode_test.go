@@ -74,21 +74,11 @@ func ExampleUnpackValue_bool() {
 	var val bool
 	var unknown interface{}
 
-	PackBool(&buf, true)
-	err = UnpackValue(&buf, &val)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	} else {
-		fmt.Printf("%v\n", val)
-	}
-	PackBool(&buf, false)
-	err = UnpackValue(&buf, &val)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	} else {
-		fmt.Printf("%v\n", val)
-	}
+	PackValue(&buf, true)
+	PackValue(&buf, false)
 	PackNil(&buf)
+	PackValue(&buf, true)
+
 	err = UnpackValue(&buf, &val)
 	if err != nil {
 		fmt.Printf("%v\n", err)
@@ -96,7 +86,20 @@ func ExampleUnpackValue_bool() {
 		fmt.Printf("%v\n", val)
 	}
 
-	PackValue(&buf, true)
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+
 	err = UnpackValue(&buf, &unknown)
 	if err != nil {
 		fmt.Printf("%v\n", err)
