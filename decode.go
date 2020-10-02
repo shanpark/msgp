@@ -11,9 +11,11 @@ import (
 )
 
 // UnpackValue reads an object from reader. And assigns to the value pointed by 'ptr'.
-// Because UnpackValue uses the type of ptr to extract values, ptr must be an address of specific type.
+// Because UnpackValue depends on the type of ptr to extract values, 'ptr'
+// must be an address of specific type.
 // If possible, read value is converted to the type of ptr.
-// If 'ptr' is a pointer of pointer, array, map type, a new value will be allocated.
+// If 'ptr' is a pointer of pointer, array, map type, a new value will be
+// allocated. and the address of the new value will be assigned to 'ptr'
 func UnpackValue(r io.Reader, ptr interface{}) error {
 	var err error
 
