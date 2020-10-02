@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"strconv"
 )
 
 // UnpackValue reads an object from reader. And assigns to the value pointed by 'ptr'.
@@ -34,8 +35,12 @@ func UnpackValue(r io.Reader, ptr interface{}) error {
 		err = UnpackSlice(r, ptr)
 	case reflect.Map:
 		err = UnpackMap(r, ptr)
+	case reflect.Struct:
+		err = UnpackStruct(r, ptr)
 	case reflect.Ptr:
 		err = UnpackPtr(r, ptr)
+	case reflect.Interface:
+		err = UnpackInterface(r, ptr)
 	default:
 		return fmt.Errorf("msgp: specified type[%v] is not supported", wantType.Kind())
 	}
@@ -55,10 +60,9 @@ func UnpackBool(r io.Reader, ptr interface{}) error {
 	if val == nil {
 		reflect.ValueOf(ptr).Elem().Set(reflect.Zero(reflect.TypeOf(ptr).Elem()))
 	} else {
-		switch reflect.ValueOf(val).Kind() {
-		case reflect.Bool:
-			reflect.ValueOf(ptr).Elem().SetBool(val.(bool))
-		default:
+		if b, ok := val.(bool); ok {
+			reflect.ValueOf(ptr).Elem().SetBool(b)
+		} else {
 			return fmt.Errorf("msgp: unpacked value[%v] is not assignable to bool type", val)
 		}
 	}
@@ -158,8 +162,15 @@ func UnpackString(r io.Reader, ptr interface{}) error {
 	if val == nil {
 		reflect.ValueOf(ptr).Elem().Set(reflect.Zero(reflect.TypeOf(ptr).Elem()))
 	} else {
-		if reflect.ValueOf(val).Kind() == reflect.String {
+		valTyp := reflect.TypeOf(val)
+		if valTyp.Kind() == reflect.String {
 			reflect.ValueOf(ptr).Elem().SetString(reflect.ValueOf(val).String())
+		} else if valTyp.Kind() == reflect.Slice {
+			if valTyp.Elem().Kind() == reflect.Uint8 {
+				reflect.ValueOf(ptr).Elem().SetString(string(val.([]byte)))
+			} else {
+				return fmt.Errorf("msgp: unpacked value[%v] is not assignable to string type", val)
+			}
 		} else {
 			return fmt.Errorf("msgp: unpacked value[%v] is not assignable to string type", val)
 		}
@@ -236,7 +247,7 @@ func UnpackArray(r io.Reader, ptr interface{}) error {
 
 	arrVal.Set(reflect.Zero(reflect.ArrayOf(arrLen, arrTyp.Elem()))) // array 생성.
 	for inx := 0; inx < srcLen; inx++ {
-		if err = UnpackValue(r, arrVal.Index(inx).Addr()); err != nil {
+		if err = UnpackValue(r, arrVal.Index(inx).Addr().Interface()); err != nil {
 			return err
 		}
 	}
@@ -306,7 +317,7 @@ func UnpackSlice(r io.Reader, ptr interface{}) error {
 
 	sliceVal.Set(reflect.MakeSlice(reflect.SliceOf(sliceTyp.Elem()), srcLen, srcLen)) // slice 생성.
 	for inx := 0; inx < srcLen; inx++ {
-		if err = UnpackValue(r, sliceVal.Index(inx).Addr()); err != nil {
+		if err = UnpackValue(r, sliceVal.Index(inx).Addr().Interface()); err != nil {
 			return err
 		}
 	}
@@ -365,17 +376,129 @@ func UnpackMap(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
+func UnpackStruct(r io.Reader, ptr interface{}) error {
+	var err error
+	var head byte
+
+	if err = binary.Read(r, binary.BigEndian, &head); err != nil {
+		return err
+	}
+	if head == 0xc0 { // nil
+		reflect.ValueOf(ptr).Elem().Set(reflect.Zero(reflect.TypeOf(ptr).Elem()))
+		return nil
+	}
+
+	var srcLen = 0
+	if head&0xf0 == 0x80 { // map
+		srcLen = int(head & 0x0f)
+	} else if head == 0xde {
+		var temp uint16
+		if err = binary.Read(r, binary.BigEndian, &temp); err != nil {
+			return err
+		}
+		srcLen = int(temp)
+	} else if head == 0xdf {
+		var temp uint32
+		if err = binary.Read(r, binary.BigEndian, &temp); err != nil {
+			return err
+		}
+		srcLen = int(temp)
+	} else {
+		return fmt.Errorf("msgp: unpacked value is not a map")
+	}
+
+	type StructField struct {
+		Props FieldProps
+		Val   reflect.Value
+	}
+	fieldMap := make(map[string]StructField)
+
+	structTyp := reflect.TypeOf(ptr).Elem()
+	structVal := reflect.ValueOf(ptr).Elem()
+
+	structVal.Set(reflect.Zero(structTyp)) // init with zero value
+
+	structNumField := structTyp.NumField()
+	for inx := 0; inx < structNumField; inx++ {
+		var fp FieldProps
+
+		fieldTyp := structTyp.Field(inx)
+		fieldVal := structVal.Field(inx)
+		fp.parseTag(fieldTyp)
+		if fp.Skip {
+			continue
+		}
+		fieldMap[fp.Name] = StructField{fp, fieldVal}
+	}
+
+	for inx := 0; inx < srcLen; inx++ {
+		var key string
+		if err = UnpackValue(r, &key); err != nil {
+			return err
+		}
+
+		structField, ok := fieldMap[key]
+		if ok {
+			if structField.Props.Skip {
+				continue
+			}
+
+			if structField.Props.String {
+				var str string
+				if err = UnpackValue(r, &str); err != nil {
+					return err
+				}
+				if err = assignValueFromString(structField.Val, str); err != nil {
+					return err
+				}
+			} else {
+				if err = UnpackValue(r, structField.Val.Addr().Interface()); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // UnpackPtr reads a msgp object from reader. And assigns to the value pointed by ptr.
 // ptr should be a pointer of pointer. And a new object filled with read object will be allocated.
 func UnpackPtr(r io.Reader, ptr interface{}) error {
 	var err error
+	var peek byte
+
+	br := NewPeekableReader(r)
+	if peek, err = br.Peek(); err != nil {
+		return err
+	}
+	if peek == 0xc0 { // nil value unpacked.
+		reflect.ValueOf(ptr).Elem().Set(reflect.Zero(reflect.TypeOf(ptr).Elem()))
+		return nil
+	}
 
 	newVal := reflect.New(reflect.TypeOf(ptr).Elem().Elem())
-	if err = UnpackValue(r, newVal.Interface()); err != nil {
+	if err = UnpackValue(br, newVal.Interface()); err != nil { // peeked byte will be consumed in UnpackValue()
 		return err
 	}
 
 	reflect.ValueOf(ptr).Elem().Set(newVal)
+	return nil
+}
+
+// UnpackPtr reads a msgp object from reader. And assigns to the value pointed by ptr.
+func UnpackInterface(r io.Reader, ptr interface{}) error {
+	var err error
+
+	pi, ok := ptr.(*interface{})
+	if !ok {
+		return fmt.Errorf("msgp: specified type[%v] is not supported", reflect.TypeOf(ptr).Elem())
+	}
+
+	if *pi, err = UnpackPrimitive(r); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -433,6 +556,18 @@ func UnpackPrimitive(r io.Reader) (interface{}, error) {
 		return UnpackBin16(r)
 	} else if head == 0xc6 {
 		return UnpackBin32(r)
+	} else if head&0xf0 == 0x90 { // array
+		return UnpackArray4(r, int(head&0x0f))
+	} else if head == 0xdc {
+		return UnpackArray16(r)
+	} else if head == 0xdd {
+		return UnpackArray32(r)
+	} else if head&0xf0 == 0x80 { // map
+		return UnpackMap4(r, int(head&0x0f))
+	} else if head == 0xde {
+		return UnpackMap16(r)
+	} else if head == 0xdf {
+		return UnpackMap32(r)
 	}
 
 	return nil, errors.New("msgp: UnpackPrimitive() reads unsupported(array, map) format family")
@@ -501,7 +636,7 @@ func UnpackFloat32(r io.Reader) (float32, error) {
 		return 0, err
 	}
 
-	bits := binary.LittleEndian.Uint32(buf)
+	bits := binary.BigEndian.Uint32(buf)
 	return math.Float32frombits(bits), nil
 }
 
@@ -512,122 +647,228 @@ func UnpackFloat64(r io.Reader) (float64, error) {
 		return 0, err
 	}
 
-	bits := binary.LittleEndian.Uint64(buf)
+	bits := binary.BigEndian.Uint64(buf)
 	return math.Float64frombits(bits), nil
 }
 
 // UnpackString5 reads a string object with length of 5 bits from reader.
 func UnpackString5(r io.Reader, len int) (string, error) {
-	strBuf := make([]byte, len)
-	if _, err := r.Read(strBuf); err != nil {
-		return "", err
-	}
-
-	return string(strBuf), nil
+	return unpackStringBody(r, len)
 }
 
 // UnpackString8 reads a string object with length of 8 bits from reader.
 func UnpackString8(r io.Reader) (string, error) {
-	var err error
 	var len uint8
-	if err = binary.Read(r, binary.BigEndian, &len); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return "", err
 	}
-
-	strBuf := make([]byte, len)
-	if _, err = r.Read(strBuf); err != nil {
-		return "", err
-	}
-
-	return string(strBuf), nil
+	return unpackStringBody(r, int(len))
 }
 
 // UnpackString16 reads a string object with length of 16 bits from reader.
 func UnpackString16(r io.Reader) (string, error) {
-	var err error
 	var len uint16
-	if err = binary.Read(r, binary.BigEndian, &len); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return "", err
 	}
-
-	strBuf := make([]byte, len)
-	if _, err = r.Read(strBuf); err != nil {
-		return "", err
-	}
-
-	return string(strBuf), nil
+	return unpackStringBody(r, int(len))
 }
 
 // UnpackString32 reads a string object with length of 32 bits from reader.
 func UnpackString32(r io.Reader) (string, error) {
-	var err error
 	var len uint32
-	if err = binary.Read(r, binary.BigEndian, &len); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return "", err
 	}
-
-	strBuf := make([]byte, len)
-	if _, err = r.Read(strBuf); err != nil {
-		return "", err
-	}
-
-	return string(strBuf), nil
+	return unpackStringBody(r, int(len))
 }
 
 // UnpackBin8 reads a binary object with length of 8 bits from reader.
 func UnpackBin8(r io.Reader) ([]byte, error) {
-	var err error
 	var len uint8
-	if err = binary.Read(r, binary.BigEndian, &len); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
 	}
-
-	bin := make([]byte, len)
-	if _, err = r.Read(bin); err != nil {
-		return nil, err
-	}
-
-	return bin, nil
+	return unpackBinBody(r, int(len))
 }
 
 // UnpackBin16 reads a binary object with length of 16 bits from reader.
 func UnpackBin16(r io.Reader) ([]byte, error) {
-	var err error
 	var len uint16
-	if err = binary.Read(r, binary.BigEndian, &len); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
 	}
-
-	bin := make([]byte, len)
-	if _, err = r.Read(bin); err != nil {
-		return nil, err
-	}
-
-	return bin, nil
+	return unpackBinBody(r, int(len))
 }
 
 // UnpackBin32 reads a binary object with length of 32 bits from reader.
 func UnpackBin32(r io.Reader) ([]byte, error) {
-	var err error
 	var len uint32
-	if err = binary.Read(r, binary.BigEndian, &len); err != nil {
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
 	}
+	return unpackBinBody(r, int(len))
+}
 
-	bin := make([]byte, len)
-	if _, err = r.Read(bin); err != nil {
+// UnpackArray4 reads an array object with length of 4 bits from readder.
+func UnpackArray4(r io.Reader, len int) (interface{}, error) {
+	return unpackArrayBody(r, len)
+}
+
+// UnpackArray16 reads an array object with length of 16 bits from readder.
+func UnpackArray16(r io.Reader) (interface{}, error) {
+	var len uint16
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
+	}
+	return unpackArrayBody(r, int(len))
+}
+
+// UnpackArray32 reads an array object with length of 32 bits from readder.
+func UnpackArray32(r io.Reader) (interface{}, error) {
+	var len uint32
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
+		return nil, err
+	}
+	return unpackArrayBody(r, int(len))
+}
+
+// UnpackMap4 reads an map object with length of 4 bits from readder.
+func UnpackMap4(r io.Reader, len int) (interface{}, error) {
+	return unpackMapBody(r, len)
+}
+
+// UnpackMap16 reads an map object with length of 16 bits from readder.
+func UnpackMap16(r io.Reader) (interface{}, error) {
+	var len uint16
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
+		return nil, err
+	}
+	return unpackMapBody(r, int(len))
+}
+
+// UnpackMap32 reads an map object with length of 32 bits from readder.
+func UnpackMap32(r io.Reader) (interface{}, error) {
+	var len uint32
+	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
+		return nil, err
+	}
+	return unpackMapBody(r, int(len))
+}
+
+func unpackStringBody(r io.Reader, len int) (string, error) {
+	if len == 0 {
+		return "", nil
+	}
+
+	var n int
+	var err error
+	str := make([]byte, len)
+	if n, err = r.Read(str); err != nil {
+		return "", err
+	}
+	if n != len {
+		return "", errors.New("msgp: broken string format family was found.")
+	}
+
+	return string(str), nil
+}
+
+func unpackBinBody(r io.Reader, len int) ([]byte, error) {
+	if len == 0 {
+		return nil, nil // nil as an empty slice
+	}
+
+	var n int
+	var err error
+	bin := make([]byte, len)
+	if n, err = r.Read(bin); err != nil {
+		return nil, err
+	}
+	if n != len {
+		return nil, errors.New("msgp: broken binary format family was found.")
 	}
 
 	return bin, nil
 }
 
-func IsLittleEndian() bool {
-	buf := []byte{5, 5}
-	binary.LittleEndian.PutUint16(buf, 0x0102)
-	if buf[0] == 0x02 {
-		return true
-	} else {
-		return false
+func unpackArrayBody(r io.Reader, len int) (interface{}, error) {
+	if len == 0 {
+		return nil, nil // nil as an empty slice
 	}
+
+	var err error
+	var val interface{}
+
+	slice := make([]interface{}, len, len)
+	for inx := 0; inx < len; inx++ {
+		if val, err = UnpackPrimitive(r); err != nil {
+			return nil, err
+		}
+		slice[inx] = val
+	}
+	return slice, nil
+}
+
+func unpackMapBody(r io.Reader, len int) (interface{}, error) {
+	if len == 0 {
+		return nil, nil // nil as an empty map
+	}
+
+	var err error
+	var key, val interface{}
+
+	mapVal := make(map[interface{}]interface{})
+	for inx := 0; inx < len; inx++ {
+		if key, err = UnpackPrimitive(r); err != nil {
+			return nil, err
+		}
+		if val, err = UnpackPrimitive(r); err != nil {
+			return nil, err
+		}
+		mapVal[key] = val
+	}
+	return mapVal, nil
+}
+
+func assignValueFromString(dest reflect.Value, str string) error {
+	var err error
+
+	if str == "null" || str == "nil" {
+		dest.Set(reflect.Zero(dest.Type()))
+	} else {
+		switch dest.Type().Kind() {
+		case reflect.Bool:
+			var b bool
+			if b, err = strconv.ParseBool(str); err != nil {
+				return err
+			}
+			dest.SetBool(b)
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			var i int64
+			if i, err = strconv.ParseInt(str, 10, 64); err != nil {
+				return err
+			}
+			dest.SetInt(i)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			var u uint64
+			if u, err = strconv.ParseUint(str, 10, 64); err != nil {
+				return err
+			}
+			dest.SetUint(u)
+		case reflect.Float32, reflect.Float64:
+			var f float64
+			if f, err = strconv.ParseFloat(str, 64); err != nil {
+				return err
+			}
+			dest.SetFloat(f)
+		case reflect.String:
+			dest.SetString(str)
+		case reflect.Ptr:
+			dest.Set(reflect.New(dest.Elem().Type()))
+			return assignValueFromString(dest.Elem(), str)
+		}
+	}
+
+	return nil
 }

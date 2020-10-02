@@ -47,12 +47,12 @@ func PackValue(w io.Writer, value interface{}) error {
 		err = PackFloat64(w, value.(float64))
 	case reflect.String:
 		err = PackString(w, value.(string))
-	case reflect.Struct:
-		err = PackStruct(w, value)
-	case reflect.Map:
-		err = PackMap(w, value)
 	case reflect.Array, reflect.Slice:
 		err = PackArray(w, value)
+	case reflect.Map:
+		err = PackMap(w, value)
+	case reflect.Struct:
+		err = PackStruct(w, value)
 	case reflect.Ptr:
 		err = PackPtr(w, value)
 	default:
@@ -221,7 +221,7 @@ func PackFloat32(w io.Writer, value float32) error {
 	if err = buf.WriteByte(0xca); err != nil {
 		return err
 	}
-	if err = binary.Write(&buf, binary.LittleEndian, math.Float32bits(value)); err != nil {
+	if err = binary.Write(&buf, binary.BigEndian, math.Float32bits(value)); err != nil {
 		return err
 	}
 
@@ -237,7 +237,7 @@ func PackFloat64(w io.Writer, value float64) error {
 	if err = buf.WriteByte(0xcb); err != nil {
 		return err
 	}
-	if err = binary.Write(&buf, binary.LittleEndian, math.Float64bits(value)); err != nil {
+	if err = binary.Write(&buf, binary.BigEndian, math.Float64bits(value)); err != nil {
 		return err
 	}
 
@@ -290,125 +290,6 @@ func PackString(w io.Writer, value string) error {
 		}
 	} else {
 		return errors.New("msgp: try to pack too long string")
-	}
-
-	_, err = w.Write(buf.Bytes())
-	return err
-}
-
-// PackStruct writes a struct data to writer.
-func PackStruct(w io.Writer, value interface{}) error {
-	var err error
-	var headBuf bytes.Buffer
-	var dataBuf bytes.Buffer
-
-	structType := reflect.TypeOf(value)
-	structValue := reflect.ValueOf(value)
-	structNumField := structType.NumField()
-
-	numField := uint32(0)
-	for inx := 0; inx < structNumField; inx++ {
-		var fp FieldProps
-
-		field := structType.Field(inx)
-		fp.parseTag(field)
-		if fp.Skip {
-			continue
-		}
-
-		fieldValue := structValue.Field(inx)
-		if fp.OmitEmpty {
-			if fieldValue.Interface() == reflect.Zero(fieldValue.Type()).Interface() {
-				continue
-			}
-		}
-
-		if err = PackString(&dataBuf, fp.Name); err != nil {
-			return err
-		}
-
-		if fp.String {
-			switch fieldValue.Kind() {
-			case reflect.Bool,
-				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-				reflect.Float32, reflect.Float64:
-				err = PackString(&dataBuf, fmt.Sprintf("%v", fieldValue.Interface()))
-			default:
-				err = PackValue(&dataBuf, fieldValue.Interface())
-			}
-		} else {
-			err = PackValue(&dataBuf, fieldValue.Interface())
-		}
-		if err != nil {
-			return err
-		}
-
-		numField++
-	}
-
-	if numField <= 0x0f {
-		if err = headBuf.WriteByte(0x80 | uint8(numField)); err != nil {
-			return err
-		}
-	} else if numField <= 0xffff {
-		if err = headBuf.WriteByte(0xde); err != nil {
-			return err
-		}
-		if err = binary.Write(&headBuf, binary.BigEndian, uint16(numField)); err != nil {
-			return err
-		}
-	} else if numField <= 0xffffffff {
-		if err = headBuf.WriteByte(0xdf); err != nil {
-			return err
-		}
-		if err = binary.Write(&headBuf, binary.BigEndian, uint32(numField)); err != nil {
-			return err
-		}
-	}
-
-	if _, err = w.Write(headBuf.Bytes()); err != nil {
-		return err
-	}
-
-	_, err = w.Write(dataBuf.Bytes())
-	return err
-}
-
-// PackMap writes a map data to writer.
-func PackMap(w io.Writer, value interface{}) error {
-	var err error
-	var buf bytes.Buffer
-
-	m := reflect.ValueOf(value)
-	mapSize := m.Len()
-	if mapSize <= 0x0f {
-		if err = buf.WriteByte(0x80 | uint8(mapSize)); err != nil {
-			return err
-		}
-	} else if mapSize <= 0xffff {
-		if err = buf.WriteByte(0xde); err != nil {
-			return err
-		}
-		if err = binary.Write(&buf, binary.BigEndian, uint16(mapSize)); err != nil {
-			return err
-		}
-	} else if mapSize <= 0xffffffff {
-		if err = buf.WriteByte(0xdf); err != nil {
-			return err
-		}
-		if err = binary.Write(&buf, binary.BigEndian, uint32(mapSize)); err != nil {
-			return err
-		}
-	}
-
-	for _, key := range m.MapKeys() {
-		if err = PackValue(&buf, key.Interface()); err != nil {
-			return err
-		}
-		if err = PackValue(&buf, m.MapIndex(key).Interface()); err != nil {
-			return err
-		}
 	}
 
 	_, err = w.Write(buf.Bytes())
@@ -483,6 +364,136 @@ func PackArray(w io.Writer, value interface{}) error {
 	}
 
 	_, err = w.Write(buf.Bytes())
+	return err
+}
+
+// PackMap writes a map data to writer.
+func PackMap(w io.Writer, value interface{}) error {
+	var err error
+	var buf bytes.Buffer
+
+	m := reflect.ValueOf(value)
+	mapSize := m.Len()
+	if mapSize <= 0x0f {
+		if err = buf.WriteByte(0x80 | uint8(mapSize)); err != nil {
+			return err
+		}
+	} else if mapSize <= 0xffff {
+		if err = buf.WriteByte(0xde); err != nil {
+			return err
+		}
+		if err = binary.Write(&buf, binary.BigEndian, uint16(mapSize)); err != nil {
+			return err
+		}
+	} else if mapSize <= 0xffffffff {
+		if err = buf.WriteByte(0xdf); err != nil {
+			return err
+		}
+		if err = binary.Write(&buf, binary.BigEndian, uint32(mapSize)); err != nil {
+			return err
+		}
+	}
+
+	for _, key := range m.MapKeys() {
+		if err = PackValue(&buf, key.Interface()); err != nil {
+			return err
+		}
+		if err = PackValue(&buf, m.MapIndex(key).Interface()); err != nil {
+			return err
+		}
+	}
+
+	_, err = w.Write(buf.Bytes())
+	return err
+}
+
+// PackStruct writes a struct data to writer.
+func PackStruct(w io.Writer, value interface{}) error {
+	var err error
+	var headBuf bytes.Buffer
+	var dataBuf bytes.Buffer
+
+	structTyp := reflect.TypeOf(value)
+	structVal := reflect.ValueOf(value)
+	structNumField := structTyp.NumField()
+
+	numField := uint32(0)
+	for inx := 0; inx < structNumField; inx++ {
+		var fp FieldProps
+
+		field := structTyp.Field(inx)
+		fp.parseTag(field)
+		if fp.Skip {
+			continue
+		}
+
+		fieldValue := structVal.Field(inx)
+		if fp.OmitEmpty {
+			if fieldValue.Interface() == reflect.Zero(fieldValue.Type()).Interface() {
+				continue
+			}
+		}
+
+		if err = PackString(&dataBuf, fp.Name); err != nil {
+			return err
+		}
+
+		if fp.String {
+			if fieldValue.Interface() == nil {
+				err = PackString(&dataBuf, "nil")
+			} else {
+			Loop:
+				for {
+					switch fieldValue.Kind() {
+					case reflect.Bool,
+						reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+						reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+						reflect.Float32, reflect.Float64:
+						err = PackString(&dataBuf, fmt.Sprintf("%v", fieldValue.Interface()))
+						break Loop
+					case reflect.Ptr:
+						fieldValue = fieldValue.Elem()
+					default:
+						err = fmt.Errorf("msgp: cannot pack Go struct field %v.%s of type %v into string", structTyp, field.Name, field.Type)
+						break Loop
+					}
+				}
+			}
+		} else {
+			err = PackValue(&dataBuf, fieldValue.Interface())
+		}
+		if err != nil {
+			return err
+		}
+
+		numField++
+	}
+
+	if numField <= 0x0f {
+		if err = headBuf.WriteByte(0x80 | uint8(numField)); err != nil {
+			return err
+		}
+	} else if numField <= 0xffff {
+		if err = headBuf.WriteByte(0xde); err != nil {
+			return err
+		}
+		if err = binary.Write(&headBuf, binary.BigEndian, uint16(numField)); err != nil {
+			return err
+		}
+	} else if numField <= 0xffffffff {
+		if err = headBuf.WriteByte(0xdf); err != nil {
+			return err
+		}
+		if err = binary.Write(&headBuf, binary.BigEndian, uint32(numField)); err != nil {
+			return err
+		}
+	}
+
+	if _, err = w.Write(headBuf.Bytes()); err != nil {
+		return err
+	}
+
+	_, err = w.Write(dataBuf.Bytes())
 	return err
 }
 

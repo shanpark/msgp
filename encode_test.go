@@ -5,6 +5,17 @@ import (
 	"fmt"
 )
 
+type structType struct {
+	AAA string
+	BBB int
+	CCC string `msgp:"ccc"`
+	DDD int    `msgp:"-"`
+	FFF int32  `msgp:"-,omitempty"`
+	GGG int32  `msgp:",omitempty"`
+	HHH int32  `msgp:",string"`
+	III int32  `msgp:",omitempty"`
+}
+
 func ExamplePackNil() {
 	var buf bytes.Buffer
 
@@ -105,17 +116,6 @@ func ExamplePackString() {
 	// Output:
 	// bf 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31
 	// d9 20 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32
-}
-
-type structType struct {
-	AAA string
-	BBB int
-	CCC string `msgp:"ccc"`
-	DDD int    `msgp:"-"`
-	FFF int32  `msgp:"-,omitempty"`
-	GGG int32  `msgp:",omitempty"`
-	HHH int32  `msgp:",string"`
-	III int32  `msgp:",omitempty"`
 }
 
 func ExamplePackStruct() {

@@ -9,26 +9,11 @@ func ExampleUnpackValue_nil() {
 	var err error
 	var buf bytes.Buffer
 
-	var s string
 	var ba [1]byte
 	var bs []byte
 	var m map[string]int
 	var pb *bool
 	var unknown interface{}
-
-	if IsLittleEndian() {
-		fmt.Println("Little")
-	} else {
-		fmt.Println("Big")
-	}
-
-	PackNil(&buf)
-	err = UnpackValue(&buf, &s)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	} else {
-		fmt.Printf("%v\n", s)
-	}
 
 	PackNil(&buf)
 	err = UnpackValue(&buf, &ba)
@@ -59,7 +44,11 @@ func ExampleUnpackValue_nil() {
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	} else {
-		fmt.Printf("%v\n", *pb)
+		if pb == nil {
+			fmt.Printf("%v\n", pb)
+		} else {
+			fmt.Printf("%v\n", *pb)
+		}
 	}
 
 	PackNil(&buf)
@@ -75,14 +64,15 @@ func ExampleUnpackValue_nil() {
 	// [0]
 	// []
 	// map[]
-	// false
-	// msgp: specified type[interface] is not supported
+	// <nil>
+	// <nil>
 }
 
 func ExampleUnpackValue_bool() {
 	var err error
 	var buf bytes.Buffer
 	var val bool
+	var unknown interface{}
 
 	PackBool(&buf, true)
 	err = UnpackValue(&buf, &val)
@@ -106,10 +96,19 @@ func ExampleUnpackValue_bool() {
 		fmt.Printf("%v\n", val)
 	}
 
+	PackValue(&buf, true)
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
+
 	// Output:
 	// true
 	// false
 	// false
+	// true
 }
 
 func ExampleUnpackValue_int() {
@@ -125,6 +124,7 @@ func ExampleUnpackValue_int() {
 	var ui16 uint16
 	var ui32 uint32
 	var ui64 uint64
+	var unknown interface{}
 
 	PackInt(&buf, 0x7f)
 	UnpackValue(&buf, &i8)
@@ -168,6 +168,14 @@ func ExampleUnpackValue_int() {
 		fmt.Printf("%x\n", ui)
 	}
 
+	PackValue(&buf, 1234)
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
+
 	// Output:
 	// 7f
 	// 7fff
@@ -179,6 +187,7 @@ func ExampleUnpackValue_int() {
 	// ffffffffffffffff
 	// 0
 	// 0
+	// 1234
 }
 
 func ExampleUnpackValue_float() {
@@ -186,6 +195,7 @@ func ExampleUnpackValue_float() {
 	var buf bytes.Buffer
 	var f32 float32
 	var f64 float64
+	var unknown interface{}
 
 	PackFloat32(&buf, 3.14)
 	err = UnpackValue(&buf, &f32)
@@ -211,8 +221,316 @@ func ExampleUnpackValue_float() {
 		fmt.Printf("%v\n", f64)
 	}
 
+	PackValue(&buf, 3.14)
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
+
 	// Output:
 	// 3.14
 	// 3.14
 	// 0
+	// 3.14
+}
+
+func ExampleUnpackValue_string() {
+	var err error
+	var buf bytes.Buffer
+	var str string
+	var unknown interface{}
+
+	PackString(&buf, "test string")
+	err = UnpackValue(&buf, &str)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", str)
+	}
+
+	PackString(&buf, "012345678901234567890123456789012")
+	err = UnpackValue(&buf, &str)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", str)
+	}
+
+	PackArray(&buf, []byte("0123456789"))
+	err = UnpackValue(&buf, &str)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", str)
+	}
+
+	PackNil(&buf)
+	err = UnpackValue(&buf, &str)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		if len(str) == 0 {
+			fmt.Printf("empty\n")
+		} else {
+			fmt.Printf("%v\n", str)
+		}
+	}
+
+	PackValue(&buf, "string in interface{}")
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
+
+	// Output:
+	// test string
+	// 012345678901234567890123456789012
+	// 0123456789
+	// empty
+	// string in interface{}
+}
+
+func ExampleUnpackValue_array() {
+	var err error
+	var buf bytes.Buffer
+	var val []int
+	var val16 []int16
+	var val32 [10]int32
+	var strs []string
+	var bin []byte
+	var unknown interface{}
+
+	PackValue(&buf, []int8{1, 2, 3, 4, 5, 6, 7, 8, 9})
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+
+	PackValue(&buf, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9})
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+
+	PackValue(&buf, []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9})
+	err = UnpackValue(&buf, &val16)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", val16)
+	}
+
+	PackValue(&buf, []int16{1, 2, 3, 4, 5})
+	err = UnpackValue(&buf, &val32)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", val32)
+	}
+
+	PackValue(&buf, nil)
+	err = UnpackValue(&buf, &val)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", val)
+	}
+
+	PackValue(&buf, nil)
+	err = UnpackValue(&buf, &val32)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", val32)
+	}
+
+	PackValue(&buf, []string{"aaa", "bbb", "ccc"})
+	err = UnpackValue(&buf, &strs)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", strs)
+	}
+
+	PackValue(&buf, []byte{1, 2, 3, 4, 5, 6})
+	err = UnpackValue(&buf, &bin)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", bin)
+	}
+
+	var arr2d [][]byte
+	src := [][]byte{{1, 2}, {3, 4}, {5, 6}}
+	PackValue(&buf, src)
+	err = UnpackValue(&buf, &arr2d)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", arr2d)
+	}
+
+	PackValue(&buf, src)
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
+
+	// Output:
+	// [1 2 3 4 5 6 7 8 9]
+	// [1 2 3 4 5 6 7 8 9]
+	// [1 2 3 4 5 6 7 8 9]
+	// [1 2 3 4 5 0 0 0 0 0]
+	// []
+	// [0 0 0 0 0 0 0 0 0 0]
+	// [aaa bbb ccc]
+	// [1 2 3 4 5 6]
+	// [[1 2] [3 4] [5 6]]
+	// [[1 2] [3 4] [5 6]]
+}
+
+func ExampleUnpackValue_map() {
+	var err error
+	var buf bytes.Buffer
+	var mint map[string]int
+	var mapmap map[string]map[string]byte
+	var unknown interface{}
+
+	PackValue(&buf, map[string]int16{"a": 1, "b": 2})
+	err = UnpackValue(&buf, &mint)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", mint)
+	}
+
+	src := map[string]map[string]int{"first": map[string]int{"sub1": 1}, "second": map[string]int{"sub2": 2}}
+	PackValue(&buf, src)
+	err = UnpackValue(&buf, &mapmap)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", mapmap)
+	}
+
+	PackValue(&buf, src)
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
+
+	// Output:
+	// map[a:1 b:2]
+	// map[first:map[sub1:1] second:map[sub2:2]]
+	// map[first:map[sub1:1] second:map[sub2:2]]
+}
+
+func ExampleUnpackValue_pointer() {
+	var err error
+	var buf bytes.Buffer
+	var p *string
+
+	PackValue(&buf, nil)
+	PackValue(&buf, "some text")
+
+	err = UnpackValue(&buf, &p)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		if p == nil {
+			fmt.Printf("%v\n", p)
+		} else {
+			fmt.Printf("%v\n", *p)
+		}
+	}
+
+	err = UnpackValue(&buf, &p)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", *p)
+	}
+
+	// Output:
+	// <nil>
+	// some text
+}
+
+type structType2 struct {
+	AAA string
+	BBB int
+	CCC string `msgp:"ccc"`
+	DDD int    `msgp:"-"`
+	FFF int32  `msgp:"-,omitempty"`
+	GGG int32  `msgp:",omitempty"`
+	HHH int32  `msgp:",string"`
+	III int32  `msgp:",omitempty"`
+}
+
+func ExampleUnpackValue_struct() {
+	var err error
+	var buf bytes.Buffer
+	var st structType2
+	var stp *structType2
+
+	src := structType{"1234567890", 255, "12345", 17, 34, 51, 100, 0}
+
+	PackValue(&buf, nil)
+	PackValue(&buf, nil)
+	PackValue(&buf, src)
+	PackValue(&buf, src)
+
+	err = UnpackValue(&buf, &st)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", st)
+	}
+
+	err = UnpackValue(&buf, &stp)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		if stp == nil {
+			fmt.Printf("%v\n", stp)
+		} else {
+			fmt.Printf("%v\n", *stp)
+		}
+	}
+
+	err = UnpackValue(&buf, &st)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", st)
+	}
+
+	err = UnpackValue(&buf, &stp)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		if stp == nil {
+			fmt.Printf("%v\n", stp)
+		} else {
+			fmt.Printf("%v\n", *stp)
+		}
+	}
+
+	// Output:
+	// { 0  0 0 0 0 0}
+	// <nil>
+	// {1234567890 255 12345 0 34 51 100 0}
+	// {1234567890 255 12345 0 34 51 100 0}
 }
