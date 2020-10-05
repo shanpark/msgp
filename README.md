@@ -28,7 +28,7 @@ st := myStruct{"1234567890", 0xff, "12345", 0x11, 0x22, 0x33, 100, 0}
 PackValue(&buf, st)             // struct
 
 var a int = 100
-erro PackValue(&buf, &a)        // pointer
+err = PackValue(&buf, &a)       // pointer
 </code></pre>
 Unpack...
 <pre><code>// Bool
