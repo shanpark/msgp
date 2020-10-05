@@ -5,77 +5,77 @@ import (
 	"fmt"
 )
 
-func ExamplePackValue() {
+func ExamplePack() {
 	var buf bytes.Buffer
 
 	// nil
-	PackValue(&buf, nil)
+	Pack(&buf, nil)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// bool
 	buf.Reset()
 
-	PackValue(&buf, true)
-	PackValue(&buf, false)
+	Pack(&buf, true)
+	Pack(&buf, false)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// integers
 	buf.Reset()
 
-	PackValue(&buf, 0x7f)
-	PackValue(&buf, 0x80)
-	PackValue(&buf, 0x7fff)
-	PackValue(&buf, 0x8000)
-	PackValue(&buf, 0x7fffffff)
-	PackValue(&buf, 0x80000000)
-	PackValue(&buf, 0x7fffffffffffffff)
+	Pack(&buf, 0x7f)
+	Pack(&buf, 0x80)
+	Pack(&buf, 0x7fff)
+	Pack(&buf, 0x8000)
+	Pack(&buf, 0x7fffffff)
+	Pack(&buf, 0x80000000)
+	Pack(&buf, 0x7fffffffffffffff)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	buf.Reset()
 
-	PackValue(&buf, -0x80)
-	PackValue(&buf, -0x8000)
-	PackValue(&buf, -0x80000000)
-	PackValue(&buf, -0x8000000000000000)
+	Pack(&buf, -0x80)
+	Pack(&buf, -0x8000)
+	Pack(&buf, -0x80000000)
+	Pack(&buf, -0x8000000000000000)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	buf.Reset()
 
-	PackValue(&buf, 0xff)
-	PackValue(&buf, 0xffff)
-	PackValue(&buf, 0xffffffff)
-	PackValue(&buf, uint64(0xffffffffffffffff))
+	Pack(&buf, 0xff)
+	Pack(&buf, 0xffff)
+	Pack(&buf, 0xffffffff)
+	Pack(&buf, uint64(0xffffffffffffffff))
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// floats
 	buf.Reset()
 
-	PackValue(&buf, float32(3.14))
+	Pack(&buf, float32(3.14))
 	fmt.Printf("% x\n", buf.Bytes())
 
 	buf.Reset()
 
-	PackValue(&buf, float64(3.14))
+	Pack(&buf, float64(3.14))
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// string
 	buf.Reset()
 
-	PackValue(&buf, "1234567890123456789012345678901")
+	Pack(&buf, "1234567890123456789012345678901")
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// array
 	buf.Reset()
 
 	a := []string{"aaa", "bbb", "ccc"}
-	PackValue(&buf, a)
+	Pack(&buf, a)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// map
 	buf.Reset()
 
 	m := map[string]int{"aaa": 1}
-	PackValue(&buf, m)
+	Pack(&buf, m)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// struct
@@ -92,13 +92,13 @@ func ExamplePackValue() {
 		III int32  `msgp:",omitempty"`
 	}
 	st := myStruct{"1234567890", 0xff, "12345", 0x11, 0x22, 0x33, 100, 0}
-	PackValue(&buf, st)
+	Pack(&buf, st)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// pointer
 	buf.Reset()
 
-	PackValue(&buf, &a)
+	Pack(&buf, &a)
 	fmt.Printf("% x\n", buf.Bytes())
 
 	// Output:
@@ -116,7 +116,7 @@ func ExamplePackValue() {
 	// 93 a3 61 61 61 a3 62 62 62 a3 63 63 63
 }
 
-func ExamplePackValue_nil() {
+func ExamplePack_nil() {
 	var buf bytes.Buffer
 
 	PackNil(&buf)
@@ -126,7 +126,7 @@ func ExamplePackValue_nil() {
 	// c0
 }
 
-func ExamplePackValue_bool() {
+func ExamplePack_bool() {
 	var buf bytes.Buffer
 
 	PackBool(&buf, true)
@@ -137,7 +137,7 @@ func ExamplePackValue_bool() {
 	// c3 c2
 }
 
-func ExamplePackValue_int() {
+func ExamplePack_int() {
 	var buf bytes.Buffer
 
 	PackInt(&buf, 0x7f)
@@ -162,7 +162,7 @@ func ExamplePackValue_int() {
 	// d0 80 d1 80 00 d2 80 00 00 00 d3 80 00 00 00 00 00 00 00
 }
 
-func ExamplePackValue_uint() {
+func ExamplePack_uint() {
 	var buf bytes.Buffer
 
 	PackUint(&buf, 0xff)
@@ -176,7 +176,7 @@ func ExamplePackValue_uint() {
 	// cc ff cd ff ff ce ff ff ff ff cf ff ff ff ff ff ff ff ff cd 01 ff
 }
 
-func ExamplePackValue_float32() {
+func ExamplePack_float32() {
 	var buf bytes.Buffer
 
 	PackFloat32(&buf, float32(3.14))
@@ -186,7 +186,7 @@ func ExamplePackValue_float32() {
 	// ca 40 48 f5 c3
 }
 
-func ExamplePackValue_float64() {
+func ExamplePack_float64() {
 	var buf bytes.Buffer
 
 	PackFloat64(&buf, float64(3.14))
@@ -196,7 +196,7 @@ func ExamplePackValue_float64() {
 	// cb 40 09 1e b8 51 eb 85 1f
 }
 
-func ExamplePackValue_string() {
+func ExamplePack_string() {
 	var buf bytes.Buffer
 
 	PackString(&buf, "1234567890123456789012345678901")
@@ -212,7 +212,7 @@ func ExamplePackValue_string() {
 	// d9 20 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37 38 39 30 31 32
 }
 
-func ExamplePackValue_map() {
+func ExamplePack_map() {
 	var buf bytes.Buffer
 	m := map[string]int{"aaa": 1}
 
@@ -223,7 +223,7 @@ func ExamplePackValue_map() {
 	// 81 a3 61 61 61 01
 }
 
-func ExamplePackValue_struct() {
+func ExamplePack_struct() {
 	type myStruct struct {
 		AAA string
 		BBB int
@@ -245,7 +245,7 @@ func ExamplePackValue_struct() {
 	// 86 a3 41 41 41 aa 31 32 33 34 35 36 37 38 39 30 a3 42 42 42 cc ff a3 63 63 63 a5 31 32 33 34 35 a1 5f 22 a3 47 47 47 33 a3 48 48 48 a3 31 30 30
 }
 
-func ExamplePackValue_array() {
+func ExamplePack_array() {
 	var buf bytes.Buffer
 	a := []string{"aaa", "bbb", "ccc"}
 	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
@@ -270,7 +270,7 @@ func ExamplePackValue_array() {
 	// c4 20 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f 20
 }
 
-func ExamplePackValue_pointer() {
+func ExamplePack_pointer() {
 	type myStruct struct {
 		AAA string
 		BBB int

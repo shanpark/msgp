@@ -6,13 +6,13 @@ See URL below for more information<br/>
     - https://godoc.org/github.com/shanpark/msgp
 
 Pack...
-<pre><code>err = PackValue(&buf, nil)      // nil
-err = PackValue(&buf, true)     // bool
-err = PackValue(&buf, 100)      // int
-err = PackValue(&buf, 3.14)     // float
-err = PackValue(&buf, "aaa")    // string
-err = PackValue(&buf, []string{"aaa", "bbb", "ccc"})    // array
-err = PackValue(&buf, map[string]int{"aaa": 1})         // map
+<pre><code>err = Pack(&buf, nil)      // nil
+err = Pack(&buf, true)     // bool
+err = Pack(&buf, 100)      // int
+err = Pack(&buf, 3.14)     // float
+err = Pack(&buf, "aaa")    // string
+err = Pack(&buf, []string{"aaa", "bbb", "ccc"})    // array
+err = Pack(&buf, map[string]int{"aaa": 1})         // map
 
 type myStruct struct {
     AAA string
@@ -25,35 +25,35 @@ type myStruct struct {
     III int32  `msgp:",omitempty"`
 }
 st := myStruct{"1234567890", 0xff, "12345", 0x11, 0x22, 0x33, 100, 0}
-PackValue(&buf, st)             // struct
+Pack(&buf, st)             // struct
 
 var a int = 100
-err = PackValue(&buf, &a)       // pointer
+err = Pack(&buf, &a)       // pointer
 </code></pre>
 Unpack...
 <pre><code>// Bool
 var b bool
-err = UnpackValue(&buf, &b)
+err = Unpack(&buf, &b)
 
 // Integer
 var i int
-err = UnpackValue(&buf, &i)
+err = Unpack(&buf, &i)
 
 // Float
 var f float32
-err = UnpackValue(&buf, &f)
+err = Unpack(&buf, &f)
 
 // String
 var str string
-err = UnpackValue(&buf, &str)
+err = Unpack(&buf, &str)
 
 // Array(Slice)
 var ia []int
-err = UnpackValue(&buf, &ia)
+err = Unpack(&buf, &ia)
 
 // Map
 var msi map[string]int
-err = UnpackValue(&buf, &msi)
+err = Unpack(&buf, &msi)
 
 // Struct
 type myStruct struct {
@@ -67,13 +67,13 @@ type myStruct struct {
     III int32  `msgp:",omitempty"`
 }
 var st myStruct
-err = UnpackValue(&buf, &st)
+err = Unpack(&buf, &st)
 
 // Unknown type
 var unknown interface{}
-err = UnpackValue(&buf, &unknown)
+err = Unpack(&buf, &unknown)
 
 // Pointer (of pointer)
 var ptr *string
-err = UnpackValue(&buf, &ptr)
+err = Unpack(&buf, &ptr)
 </code></pre>

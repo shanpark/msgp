@@ -10,9 +10,9 @@ import (
 	"reflect"
 )
 
-// PackValue writes a value to the io.Writer.
+// Pack writes a value to the io.Writer.
 // It is recommended to use this function for all types.
-func PackValue(w io.Writer, value interface{}) error {
+func Pack(w io.Writer, value interface{}) error {
 	var err error
 
 	if value == nil {
@@ -359,7 +359,7 @@ func PackArray(w io.Writer, value interface{}) error {
 	}
 
 	for inx := 0; inx < a.Len(); inx++ {
-		if err = PackValue(&buf, a.Index(inx).Interface()); err != nil {
+		if err = Pack(&buf, a.Index(inx).Interface()); err != nil {
 			return err
 		}
 	}
@@ -396,10 +396,10 @@ func PackMap(w io.Writer, value interface{}) error {
 	}
 
 	for _, key := range m.MapKeys() {
-		if err = PackValue(&buf, key.Interface()); err != nil {
+		if err = Pack(&buf, key.Interface()); err != nil {
 			return err
 		}
-		if err = PackValue(&buf, m.MapIndex(key).Interface()); err != nil {
+		if err = Pack(&buf, m.MapIndex(key).Interface()); err != nil {
 			return err
 		}
 	}
@@ -462,7 +462,7 @@ func PackStruct(w io.Writer, value interface{}) error {
 				}
 			}
 		} else {
-			err = PackValue(&dataBuf, fieldValue.Interface())
+			err = Pack(&dataBuf, fieldValue.Interface())
 		}
 		if err != nil {
 			return err
@@ -501,5 +501,5 @@ func PackStruct(w io.Writer, value interface{}) error {
 
 // PackPtr writes a value pointed by ptr to the io.Writer.
 func PackPtr(w io.Writer, ptr interface{}) error {
-	return PackValue(w, reflect.ValueOf(ptr).Elem().Interface())
+	return Pack(w, reflect.ValueOf(ptr).Elem().Interface())
 }

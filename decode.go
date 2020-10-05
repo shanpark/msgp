@@ -10,14 +10,14 @@ import (
 	"strconv"
 )
 
-// UnpackValue reads a value from the io.Reader. And assigns it to the value pointed by 'ptr'.
-// Because UnpackValue depends on the type of 'ptr' to extract a value, 'ptr' should be
+// Unpack reads a value from the io.Reader. And assigns it to the value pointed by 'ptr'.
+// Because Unpack depends on the type of 'ptr' to extract a value, 'ptr' should be
 // an address of specific type variable.
 // If possible, the read value will be converted to the type of variable pointed by 'ptr'.
 // If 'ptr' is a pointer of pointer, a new value will be allocated. You don't have to
 // allocate new one.
 // It is recommended to use this function for all types.
-func UnpackValue(r io.Reader, ptr interface{}) error {
+func Unpack(r io.Reader, ptr interface{}) error {
 	var err error
 
 	wantType := reflect.TypeOf(ptr).Elem()
@@ -257,7 +257,7 @@ func UnpackArray(r io.Reader, ptr interface{}) error {
 
 	arrVal.Set(reflect.Zero(reflect.ArrayOf(arrLen, arrTyp.Elem()))) // array 생성.
 	for inx := 0; inx < srcLen; inx++ {
-		if err = UnpackValue(r, arrVal.Index(inx).Addr().Interface()); err != nil {
+		if err = Unpack(r, arrVal.Index(inx).Addr().Interface()); err != nil {
 			return err
 		}
 	}
@@ -330,7 +330,7 @@ func UnpackSlice(r io.Reader, ptr interface{}) error {
 
 	sliceVal.Set(reflect.MakeSlice(reflect.SliceOf(sliceTyp.Elem()), srcLen, srcLen)) // slice 생성.
 	for inx := 0; inx < srcLen; inx++ {
-		if err = UnpackValue(r, sliceVal.Index(inx).Addr().Interface()); err != nil {
+		if err = Unpack(r, sliceVal.Index(inx).Addr().Interface()); err != nil {
 			return err
 		}
 	}
@@ -376,12 +376,12 @@ func UnpackMap(r io.Reader, ptr interface{}) error {
 	mapVal.Set(reflect.MakeMap(reflect.MapOf(mapTyp.Key(), mapTyp.Elem()))) // map 생성.
 	for inx := 0; inx < srcLen; inx++ {
 		keyPtr := reflect.New(mapTyp.Key())
-		if err = UnpackValue(r, keyPtr.Interface()); err != nil {
+		if err = Unpack(r, keyPtr.Interface()); err != nil {
 			return err
 		}
 
 		valPtr := reflect.New(mapTyp.Elem())
-		if err = UnpackValue(r, valPtr.Interface()); err != nil {
+		if err = Unpack(r, valPtr.Interface()); err != nil {
 			return err
 		}
 		mapVal.SetMapIndex(keyPtr.Elem(), valPtr.Elem())
@@ -449,7 +449,7 @@ func UnpackStruct(r io.Reader, ptr interface{}) error {
 
 	for inx := 0; inx < srcLen; inx++ {
 		var key string
-		if err = UnpackValue(r, &key); err != nil {
+		if err = Unpack(r, &key); err != nil {
 			return err
 		}
 
@@ -461,14 +461,14 @@ func UnpackStruct(r io.Reader, ptr interface{}) error {
 
 			if structField.Props.String {
 				var str string
-				if err = UnpackValue(r, &str); err != nil {
+				if err = Unpack(r, &str); err != nil {
 					return err
 				}
 				if err = assignValueFromString(structField.Val, str); err != nil {
 					return err
 				}
 			} else {
-				if err = UnpackValue(r, structField.Val.Addr().Interface()); err != nil {
+				if err = Unpack(r, structField.Val.Addr().Interface()); err != nil {
 					return err
 				}
 			}
@@ -494,7 +494,7 @@ func UnpackPtr(r io.Reader, ptr interface{}) error {
 	}
 
 	newVal := reflect.New(reflect.TypeOf(ptr).Elem().Elem())
-	if err = UnpackValue(br, newVal.Interface()); err != nil { // peeked byte will be consumed in UnpackValue()
+	if err = Unpack(br, newVal.Interface()); err != nil { // peeked byte will be consumed in Unpack()
 		return err
 	}
 
@@ -521,7 +521,7 @@ func UnpackInterface(r io.Reader, ptr interface{}) error {
 
 // UnpackPrimitive reads a value from the io.Reader.
 // but no type casting takes place.
-// It is generally recommended to use UnpackValue().
+// It is generally recommended to use Unpack().
 func UnpackPrimitive(r io.Reader) (interface{}, error) {
 	var err error
 	var head byte
