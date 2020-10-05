@@ -1,13 +1,17 @@
 package msgp
 
-import "io"
+import (
+	"io"
+)
 
+// PeekableReader implements one byte buffering for an io.Reader object.
 type PeekableReader struct {
 	rd   io.Reader // reader provided by the client
 	full bool
 	byt  byte
 }
 
+// NewPeekableReader returns a new PeekableReader.
 func NewPeekableReader(rd io.Reader) *PeekableReader {
 	// Is it already a Reader?
 	b, ok := rd.(*PeekableReader)
@@ -17,6 +21,19 @@ func NewPeekableReader(rd io.Reader) *PeekableReader {
 	r := new(PeekableReader)
 	r.rd = rd
 	return r
+}
+
+// Peek returns the next byte without advancing the reader.
+func (b *PeekableReader) Peek() (byte, error) {
+	if !b.full {
+		buf := []byte{0}
+		if _, err := b.rd.Read(buf); err != nil {
+			return 0, err
+		}
+		b.byt = buf[0]
+		b.full = true
+	}
+	return b.byt, nil
 }
 
 func (b *PeekableReader) Read(p []byte) (n int, err error) {
@@ -34,16 +51,4 @@ func (b *PeekableReader) Read(p []byte) (n int, err error) {
 		}
 	}
 	return b.rd.Read(p)
-}
-
-func (b *PeekableReader) Peek() (byte, error) {
-	if !b.full {
-		buf := []byte{0}
-		if _, err := b.rd.Read(buf); err != nil {
-			return 0, err
-		}
-		b.byt = buf[0]
-		b.full = true
-	}
-	return b.byt, nil
 }

@@ -5,6 +5,124 @@ import (
 	"fmt"
 )
 
+func ExampleUnpackValue() {
+	var err error
+	var buf bytes.Buffer
+	var b bool
+	var i8 int8
+	var ui16 uint16
+	var f32 float32
+	var str string
+	var ia []int
+	var msi map[string]int
+	var ptr *string
+	var unknown interface{}
+
+	PackValue(&buf, true)
+	err = UnpackValue(&buf, &b)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", b)
+	}
+
+	PackValue(&buf, 0x7f)
+	err = UnpackValue(&buf, &i8)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%x\n", i8)
+	}
+
+	PackValue(&buf, 0x11)
+	err = UnpackValue(&buf, &ui16)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%x\n", ui16)
+	}
+
+	PackValue(&buf, 3.14)
+	err = UnpackValue(&buf, &f32)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", f32)
+	}
+
+	PackValue(&buf, "test string")
+	err = UnpackValue(&buf, &str)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", str)
+	}
+
+	PackValue(&buf, []int8{1, 2, 3, 4, 5, 6, 7, 8, 9})
+	err = UnpackValue(&buf, &ia)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", ia)
+	}
+
+	PackValue(&buf, map[string]int16{"a": 1, "b": 2})
+	err = UnpackValue(&buf, &msi)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", msi)
+	}
+
+	PackValue(&buf, "some text")
+	err = UnpackValue(&buf, &ptr)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", *ptr)
+	}
+
+	PackValue(&buf, "string in interface{}")
+	err = UnpackValue(&buf, &unknown)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		fmt.Printf("%v\n", unknown)
+	}
+
+	type myStruct struct {
+		AAA string
+		BBB int
+		CCC string `msgp:"ccc"`
+		DDD int    `msgp:"-"`
+		FFF int32  `msgp:"-,omitempty"`
+		GGG int32  `msgp:",omitempty"`
+		HHH int32  `msgp:",string"`
+		III int32  `msgp:",omitempty"`
+	}
+	var st myStruct
+
+	PackValue(&buf, myStruct{"1234567890", 255, "12345", 17, 34, 51, 100, 0})
+	err = UnpackValue(&buf, &st)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Printf("%v\n", st)
+	}
+
+	// Output:
+	// true
+	// 7f
+	// 11
+	// 3.14
+	// test string
+	// [1 2 3 4 5 6 7 8 9]
+	// map[a:1 b:2]
+	// some text
+	// string in interface{}
+	// {1234567890 255 12345 0 34 51 100 0}
+}
+
 func ExampleUnpackValue_nil() {
 	var err error
 	var buf bytes.Buffer
@@ -76,7 +194,7 @@ func ExampleUnpackValue_bool() {
 
 	PackValue(&buf, true)
 	PackValue(&buf, false)
-	PackNil(&buf)
+	PackValue(&buf, nil)
 	PackValue(&buf, true)
 
 	err = UnpackValue(&buf, &val)
@@ -201,6 +319,10 @@ func ExampleUnpackValue_float() {
 	var unknown interface{}
 
 	PackFloat32(&buf, 3.14)
+	PackFloat64(&buf, 3.14)
+	PackValue(&buf, nil)
+	PackValue(&buf, 3.14)
+
 	err = UnpackValue(&buf, &f32)
 	if err != nil {
 		fmt.Println(err)
@@ -208,7 +330,6 @@ func ExampleUnpackValue_float() {
 		fmt.Printf("%v\n", f32)
 	}
 
-	PackFloat64(&buf, 3.14)
 	err = UnpackValue(&buf, &f64)
 	if err != nil {
 		fmt.Println(err)
@@ -216,7 +337,6 @@ func ExampleUnpackValue_float() {
 		fmt.Printf("%v\n", f64)
 	}
 
-	PackNil(&buf)
 	err = UnpackValue(&buf, &f64)
 	if err != nil {
 		fmt.Println(err)
@@ -224,7 +344,6 @@ func ExampleUnpackValue_float() {
 		fmt.Printf("%v\n", f64)
 	}
 
-	PackValue(&buf, 3.14)
 	err = UnpackValue(&buf, &unknown)
 	if err != nil {
 		fmt.Printf("%v\n", err)
@@ -405,16 +524,16 @@ func ExampleUnpackValue_array() {
 func ExampleUnpackValue_map() {
 	var err error
 	var buf bytes.Buffer
-	var mint map[string]int
+	var msi map[string]int
 	var mapmap map[string]map[string]byte
 	var unknown interface{}
 
 	PackValue(&buf, map[string]int16{"a": 1, "b": 2})
-	err = UnpackValue(&buf, &mint)
+	err = UnpackValue(&buf, &msi)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", mint)
+		fmt.Printf("%v\n", msi)
 	}
 
 	src := map[string]map[string]int{"first": map[string]int{"sub1": 1}, "second": map[string]int{"sub2": 2}}
@@ -443,27 +562,27 @@ func ExampleUnpackValue_map() {
 func ExampleUnpackValue_pointer() {
 	var err error
 	var buf bytes.Buffer
-	var p *string
+	var ptr *string
 
 	PackValue(&buf, nil)
 	PackValue(&buf, "some text")
 
-	err = UnpackValue(&buf, &p)
+	err = UnpackValue(&buf, &ptr)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		if p == nil {
-			fmt.Printf("%v\n", p)
+		if ptr == nil {
+			fmt.Printf("%v\n", ptr)
 		} else {
-			fmt.Printf("%v\n", *p)
+			fmt.Printf("%v\n", *ptr)
 		}
 	}
 
-	err = UnpackValue(&buf, &p)
+	err = UnpackValue(&buf, &ptr)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", *p)
+		fmt.Printf("%v\n", *ptr)
 	}
 
 	// Output:
@@ -471,24 +590,24 @@ func ExampleUnpackValue_pointer() {
 	// some text
 }
 
-type structType2 struct {
-	AAA string
-	BBB int
-	CCC string `msgp:"ccc"`
-	DDD int    `msgp:"-"`
-	FFF int32  `msgp:"-,omitempty"`
-	GGG int32  `msgp:",omitempty"`
-	HHH int32  `msgp:",string"`
-	III int32  `msgp:",omitempty"`
-}
-
 func ExampleUnpackValue_struct() {
+	type myStruct struct {
+		AAA string
+		BBB int
+		CCC string `msgp:"ccc"`
+		DDD int    `msgp:"-"`
+		FFF int32  `msgp:"-,omitempty"`
+		GGG int32  `msgp:",omitempty"`
+		HHH int32  `msgp:",string"`
+		III int32  `msgp:",omitempty"`
+	}
+
 	var err error
 	var buf bytes.Buffer
-	var st structType2
-	var stp *structType2
+	var st myStruct
+	var stp *myStruct
 
-	src := structType{"1234567890", 255, "12345", 17, 34, 51, 100, 0}
+	src := myStruct{"1234567890", 255, "12345", 17, 34, 51, 100, 0}
 
 	PackValue(&buf, nil)
 	PackValue(&buf, nil)

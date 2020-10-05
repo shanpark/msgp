@@ -10,7 +10,8 @@ import (
 	"reflect"
 )
 
-// PackValue serialize a value.
+// PackValue writes a value to the io.Writer.
+// It is recommended to use this function for all types.
 func PackValue(w io.Writer, value interface{}) error {
 	var err error
 
@@ -62,13 +63,13 @@ func PackValue(w io.Writer, value interface{}) error {
 	return err
 }
 
-// PackNil writes nil value.
+// PackNil writes a nil value to the io.Writer.
 func PackNil(w io.Writer) error {
 	_, err := w.Write([]byte{0xc0})
 	return err
 }
 
-// PackBool writes a bool data to writer.
+// PackBool writes a bool value to the io.Writer.
 func PackBool(w io.Writer, value bool) error {
 	var err error
 
@@ -81,7 +82,7 @@ func PackBool(w io.Writer, value bool) error {
 	return err
 }
 
-// PackInt writes an int type data to writer.
+// PackInt writes an integer value to the io.Writer.
 func PackInt(w io.Writer, value int64) error {
 	var err error
 	var buf bytes.Buffer
@@ -91,7 +92,7 @@ func PackInt(w io.Writer, value int64) error {
 			if err = buf.WriteByte(byte(value)); err != nil {
 				return err
 			}
-		} else if value < 0xff { // uint
+		} else if value <= 0xff { // uint
 			if err = buf.WriteByte(0xcc); err != nil {
 				return err
 			}
@@ -174,7 +175,7 @@ func PackInt(w io.Writer, value int64) error {
 	return err
 }
 
-// PackUint writes an uint type data to writer.
+// PackUint writes an unsigned integer value to the io.Writer.
 func PackUint(w io.Writer, value uint64) error {
 	var err error
 	var buf bytes.Buffer
@@ -213,7 +214,7 @@ func PackUint(w io.Writer, value uint64) error {
 	return err
 }
 
-// PackFloat32 writes a float32 data to writer.
+// PackFloat32 writes a float32 value to the io.Writer.
 func PackFloat32(w io.Writer, value float32) error {
 	var err error
 	var buf bytes.Buffer
@@ -229,7 +230,7 @@ func PackFloat32(w io.Writer, value float32) error {
 	return err
 }
 
-// PackFloat64 writes a float64 data to writer.
+// PackFloat64 writes a float64 value to the io.Writer.
 func PackFloat64(w io.Writer, value float64) error {
 	var err error
 	var buf bytes.Buffer
@@ -245,7 +246,7 @@ func PackFloat64(w io.Writer, value float64) error {
 	return err
 }
 
-// PackString writes a string data to writer.
+// PackString writes a string value to the io.Writer.
 func PackString(w io.Writer, value string) error {
 	var err error
 	var buf bytes.Buffer
@@ -296,7 +297,7 @@ func PackString(w io.Writer, value string) error {
 	return err
 }
 
-// PackArray writes a array data to writer.
+// PackArray writes an array to the io.Writer.
 func PackArray(w io.Writer, value interface{}) error {
 	var err error
 	var buf bytes.Buffer
@@ -367,7 +368,7 @@ func PackArray(w io.Writer, value interface{}) error {
 	return err
 }
 
-// PackMap writes a map data to writer.
+// PackMap writes a map to the io.Writer.
 func PackMap(w io.Writer, value interface{}) error {
 	var err error
 	var buf bytes.Buffer
@@ -407,7 +408,8 @@ func PackMap(w io.Writer, value interface{}) error {
 	return err
 }
 
-// PackStruct writes a struct data to writer.
+// PackStruct writes a struct value to the io.Writer.
+// The struct value is serialized as a map[string]interface{}.
 func PackStruct(w io.Writer, value interface{}) error {
 	var err error
 	var headBuf bytes.Buffer
@@ -497,7 +499,7 @@ func PackStruct(w io.Writer, value interface{}) error {
 	return err
 }
 
-// PackPtr writes the data pointed by ptr to writer.
-func PackPtr(w io.Writer, value interface{}) error {
-	return PackValue(w, reflect.ValueOf(value).Elem().Interface())
+// PackPtr writes a value pointed by ptr to the io.Writer.
+func PackPtr(w io.Writer, ptr interface{}) error {
+	return PackValue(w, reflect.ValueOf(ptr).Elem().Interface())
 }

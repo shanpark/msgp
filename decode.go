@@ -10,12 +10,13 @@ import (
 	"strconv"
 )
 
-// UnpackValue reads an object from reader. And assigns to the value pointed by 'ptr'.
-// Because UnpackValue depends on the type of ptr to extract values, 'ptr'
-// must be an address of specific type.
-// If possible, read value is converted to the type of ptr.
-// If 'ptr' is a pointer of pointer, array, map type, a new value will be
-// allocated. and the address of the new value will be assigned to 'ptr'
+// UnpackValue reads a value from the io.Reader. And assigns it to the value pointed by 'ptr'.
+// Because UnpackValue depends on the type of 'ptr' to extract a value, 'ptr' should be
+// an address of specific type variable.
+// If possible, the read value will be converted to the type of variable pointed by 'ptr'.
+// If 'ptr' is a pointer of pointer, a new value will be allocated. You don't have to
+// allocate new one.
+// It is recommended to use this function for all types.
 func UnpackValue(r io.Reader, ptr interface{}) error {
 	var err error
 
@@ -50,7 +51,7 @@ func UnpackValue(r io.Reader, ptr interface{}) error {
 	return err
 }
 
-// UnpackBool reads a bool value from reader. And assigns to the value pointed by ptr.
+// UnpackBool reads a bool value from the io.Reader. And assigns it to the value pointed by 'ptr'.
 func UnpackBool(r io.Reader, ptr interface{}) error {
 	var err error
 	var val interface{}
@@ -71,8 +72,9 @@ func UnpackBool(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackInt reads a integer value from reader. And assigns to the value pointed by ptr.
+// UnpackInt reads a integer value from the io.Reader. And assigns it to the value pointed by 'ptr'.
 // Numeric types(int, uint, float) are compatible with each other.
+// Even float value can be read by a int variable.
 func UnpackInt(r io.Reader, ptr interface{}) error {
 	var err error
 	var val interface{}
@@ -98,8 +100,9 @@ func UnpackInt(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackUint reads a unsigned integer value from reader. And assigns to the value pointed by ptr.
+// UnpackUint reads a unsigned integer value from the io.Reader. And assigns it to the value pointed by 'ptr'.
 // Numeric types(int, uint, float) are compatible with each other.
+// Even float value can be read by a uint variable.
 func UnpackUint(r io.Reader, ptr interface{}) error {
 	var err error
 	var val interface{}
@@ -125,8 +128,9 @@ func UnpackUint(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackFloat reads a float value from reader. And assigns to the value pointed by ptr.
+// UnpackFloat reads a float value from the io.Reader. And assigns it to the value pointed by 'ptr'.
 // Numeric types(int, uint, float) are compatible with each other.
+// Even int value can be read by a float32 variable.
 func UnpackFloat(r io.Reader, ptr interface{}) error {
 	var err error
 	var val interface{}
@@ -152,7 +156,7 @@ func UnpackFloat(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackString reads a string value from reader. And assigns to the value pointed by ptr.
+// UnpackString reads a string value from the io.Reader. And assigns it to the value pointed by 'ptr'.
 func UnpackString(r io.Reader, ptr interface{}) error {
 	var err error
 	var val interface{}
@@ -180,7 +184,11 @@ func UnpackString(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackArray reads a array value from reader. And assigns to the value pointed by ptr.
+// UnpackArray reads an array from the io.Reader. And assigns it to the value pointed by 'ptr'.
+// The length of array type pointed by 'ptr' should be large enough.
+// Bin format family value is also read by this function.
+// Bin format famaly should be read with a pointer of '[n]byte' or '[n]uint8'.
+// (Numeric types are compatible, but bin format family cannot be read with [n]int)
 func UnpackArray(r io.Reader, ptr interface{}) error {
 	var err error
 	var head byte
@@ -205,11 +213,11 @@ func UnpackArray(r io.Reader, ptr interface{}) error {
 
 			switch head {
 			case 0xc4:
-				byteSlice, err = UnpackBin8(r)
+				byteSlice, err = unpackBin8(r)
 			case 0xc5:
-				byteSlice, err = UnpackBin16(r)
+				byteSlice, err = unpackBin16(r)
 			case 0xc6:
-				byteSlice, err = UnpackBin32(r)
+				byteSlice, err = unpackBin32(r)
 			}
 			if err != nil {
 				return err
@@ -256,7 +264,10 @@ func UnpackArray(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackSlice reads a array value from reader. And assigns to the value pointed by ptr.
+// UnpackSlice reads an array from the io.Reader. And assigns it to the value pointed by 'ptr'.
+// Bin format family value is also read by this function.
+// Bin format famaly should be read with a pointer of '[]byte' or '[]uint8'.
+// (Numeric types are compatible, but bin format family cannot be read with []int)
 func UnpackSlice(r io.Reader, ptr interface{}) error {
 	var err error
 	var head byte
@@ -280,11 +291,11 @@ func UnpackSlice(r io.Reader, ptr interface{}) error {
 
 			switch head {
 			case 0xc4:
-				byteSlice, err = UnpackBin8(r)
+				byteSlice, err = unpackBin8(r)
 			case 0xc5:
-				byteSlice, err = UnpackBin16(r)
+				byteSlice, err = unpackBin16(r)
 			case 0xc6:
-				byteSlice, err = UnpackBin32(r)
+				byteSlice, err = unpackBin32(r)
 			}
 			if err != nil {
 				return err
@@ -326,7 +337,7 @@ func UnpackSlice(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackMap reads a map value from reader. And assigns to the value pointed by ptr.
+// UnpackMap reads a map from the io.Reader. And assigns it to the value pointed by 'ptr'.
 func UnpackMap(r io.Reader, ptr interface{}) error {
 	var err error
 	var head byte
@@ -378,6 +389,9 @@ func UnpackMap(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
+// UnpackStruct reads a struct value from the io.Reader. And assigns it to the value pointed by 'ptr'.
+// The struct value is deserialized from a map value.
+// If the fields of struct are not compatible with the value read, an error is returned.
 func UnpackStruct(r io.Reader, ptr interface{}) error {
 	var err error
 	var head byte
@@ -464,8 +478,8 @@ func UnpackStruct(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackPtr reads a msgp object from reader. And assigns to the value pointed by ptr.
-// ptr should be a pointer of pointer. And a new object filled with read object will be allocated.
+// UnpackPtr reads a value from the io.Reader. And assigns it to the value pointed by 'ptr'.
+// 'ptr' should be a pointer of pointer.
 func UnpackPtr(r io.Reader, ptr interface{}) error {
 	var err error
 	var peek byte
@@ -488,7 +502,8 @@ func UnpackPtr(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackPtr reads a msgp object from reader. And assigns to the value pointed by ptr.
+// UnpackInterface reads a value from the io.Reader. And assigns it to the value pointed by 'ptr'.
+// If you don't know the type, you can use this function. but you will have to use reflection to discover the type of the value read.
 func UnpackInterface(r io.Reader, ptr interface{}) error {
 	var err error
 
@@ -504,8 +519,9 @@ func UnpackInterface(r io.Reader, ptr interface{}) error {
 	return nil
 }
 
-// UnpackPrimitive reads a primitive value from reader.
-// Primitive values mean the values of nil, pool, int, uint, float, string, [] bytes.
+// UnpackPrimitive reads a value from the io.Reader.
+// but no type casting takes place.
+// It is generally recommended to use UnpackValue().
 func UnpackPrimitive(r io.Reader) (interface{}, error) {
 	var err error
 	var head byte
@@ -525,114 +541,105 @@ func UnpackPrimitive(r io.Reader) (interface{}, error) {
 	} else if head&0xe0 == 0xe0 {
 		return int8(head), nil
 	} else if head == 0xd0 {
-		return UnpackInt8(r)
+		return unpackInt8(r)
 	} else if head == 0xd1 {
-		return UnpackInt16(r)
+		return unpackInt16(r)
 	} else if head == 0xd2 {
-		return UnpackInt32(r)
+		return unpackInt32(r)
 	} else if head == 0xd3 {
-		return UnpackInt64(r)
+		return unpackInt64(r)
 	} else if head == 0xcc {
-		return UnpackUint8(r)
+		return unpackUint8(r)
 	} else if head == 0xcd {
-		return UnpackUint16(r)
+		return unpackUint16(r)
 	} else if head == 0xce {
-		return UnpackUint32(r)
+		return unpackUint32(r)
 	} else if head == 0xcf {
-		return UnpackUint64(r)
+		return unpackUint64(r)
 	} else if head == 0xca {
-		return UnpackFloat32(r)
+		return unpackFloat32(r)
 	} else if head == 0xcb {
-		return UnpackFloat64(r)
+		return unpackFloat64(r)
 	} else if head&0xe0 == 0xa0 {
-		return UnpackString5(r, int(head&0x1f))
+		return unpackString5(r, int(head&0x1f))
 	} else if head == 0xd9 {
-		return UnpackString8(r)
+		return unpackString8(r)
 	} else if head == 0xda {
-		return UnpackString16(r)
+		return unpackString16(r)
 	} else if head == 0xdb {
-		return UnpackString32(r)
+		return unpackString32(r)
 	} else if head == 0xc4 { // bin
-		return UnpackBin8(r)
+		return unpackBin8(r)
 	} else if head == 0xc5 {
-		return UnpackBin16(r)
+		return unpackBin16(r)
 	} else if head == 0xc6 {
-		return UnpackBin32(r)
+		return unpackBin32(r)
 	} else if head&0xf0 == 0x90 { // array
-		return UnpackArray4(r, int(head&0x0f))
+		return unpackArray4(r, int(head&0x0f))
 	} else if head == 0xdc {
-		return UnpackArray16(r)
+		return unpackArray16(r)
 	} else if head == 0xdd {
-		return UnpackArray32(r)
+		return unpackArray32(r)
 	} else if head&0xf0 == 0x80 { // map
-		return UnpackMap4(r, int(head&0x0f))
+		return unpackMap4(r, int(head&0x0f))
 	} else if head == 0xde {
-		return UnpackMap16(r)
+		return unpackMap16(r)
 	} else if head == 0xdf {
-		return UnpackMap32(r)
+		return unpackMap32(r)
 	}
 
 	return nil, errors.New("msgp: UnpackPrimitive() reads unsupported(array, map) format family")
 }
 
-// UnpackInt8 reads a int8 object from reader.
-func UnpackInt8(r io.Reader) (int8, error) {
+func unpackInt8(r io.Reader) (int8, error) {
 	var val int8
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackInt16 reads a int16 object from reader.
-func UnpackInt16(r io.Reader) (int16, error) {
+func unpackInt16(r io.Reader) (int16, error) {
 	var val int16
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackInt32 reads a int32 object from reader.
-func UnpackInt32(r io.Reader) (int32, error) {
+func unpackInt32(r io.Reader) (int32, error) {
 	var val int32
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackInt64 reads a int64 object from reader.
-func UnpackInt64(r io.Reader) (int64, error) {
+func unpackInt64(r io.Reader) (int64, error) {
 	var val int64
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackUint8 reads a uint8 object from reader.
-func UnpackUint8(r io.Reader) (uint8, error) {
+func unpackUint8(r io.Reader) (uint8, error) {
 	var val uint8
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackUint16 reads a uint16 object from reader.
-func UnpackUint16(r io.Reader) (uint16, error) {
+func unpackUint16(r io.Reader) (uint16, error) {
 	var val uint16
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackUint32 reads a uint32 object from reader.
-func UnpackUint32(r io.Reader) (uint32, error) {
+func unpackUint32(r io.Reader) (uint32, error) {
 	var val uint32
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackUint64 reads a uint64 object from reader.
-func UnpackUint64(r io.Reader) (uint64, error) {
+func unpackUint64(r io.Reader) (uint64, error) {
 	var val uint64
 	err := binary.Read(r, binary.BigEndian, &val)
 	return val, err
 }
 
-// UnpackFloat32 reads a float32 object from reader.
-func UnpackFloat32(r io.Reader) (float32, error) {
+func unpackFloat32(r io.Reader) (float32, error) {
 	buf := make([]byte, 4)
 	if _, err := r.Read(buf); err != nil {
 		return 0, err
@@ -642,8 +649,7 @@ func UnpackFloat32(r io.Reader) (float32, error) {
 	return math.Float32frombits(bits), nil
 }
 
-// UnpackFloat64 reads a float64 object from reader.
-func UnpackFloat64(r io.Reader) (float64, error) {
+func unpackFloat64(r io.Reader) (float64, error) {
 	buf := make([]byte, 8)
 	if _, err := r.Read(buf); err != nil {
 		return 0, err
@@ -653,13 +659,11 @@ func UnpackFloat64(r io.Reader) (float64, error) {
 	return math.Float64frombits(bits), nil
 }
 
-// UnpackString5 reads a string object with length of 5 bits from reader.
-func UnpackString5(r io.Reader, len int) (string, error) {
+func unpackString5(r io.Reader, len int) (string, error) {
 	return unpackStringBody(r, len)
 }
 
-// UnpackString8 reads a string object with length of 8 bits from reader.
-func UnpackString8(r io.Reader) (string, error) {
+func unpackString8(r io.Reader) (string, error) {
 	var len uint8
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return "", err
@@ -667,8 +671,7 @@ func UnpackString8(r io.Reader) (string, error) {
 	return unpackStringBody(r, int(len))
 }
 
-// UnpackString16 reads a string object with length of 16 bits from reader.
-func UnpackString16(r io.Reader) (string, error) {
+func unpackString16(r io.Reader) (string, error) {
 	var len uint16
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return "", err
@@ -676,8 +679,7 @@ func UnpackString16(r io.Reader) (string, error) {
 	return unpackStringBody(r, int(len))
 }
 
-// UnpackString32 reads a string object with length of 32 bits from reader.
-func UnpackString32(r io.Reader) (string, error) {
+func unpackString32(r io.Reader) (string, error) {
 	var len uint32
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return "", err
@@ -685,8 +687,7 @@ func UnpackString32(r io.Reader) (string, error) {
 	return unpackStringBody(r, int(len))
 }
 
-// UnpackBin8 reads a binary object with length of 8 bits from reader.
-func UnpackBin8(r io.Reader) ([]byte, error) {
+func unpackBin8(r io.Reader) ([]byte, error) {
 	var len uint8
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
@@ -694,8 +695,7 @@ func UnpackBin8(r io.Reader) ([]byte, error) {
 	return unpackBinBody(r, int(len))
 }
 
-// UnpackBin16 reads a binary object with length of 16 bits from reader.
-func UnpackBin16(r io.Reader) ([]byte, error) {
+func unpackBin16(r io.Reader) ([]byte, error) {
 	var len uint16
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
@@ -703,8 +703,7 @@ func UnpackBin16(r io.Reader) ([]byte, error) {
 	return unpackBinBody(r, int(len))
 }
 
-// UnpackBin32 reads a binary object with length of 32 bits from reader.
-func UnpackBin32(r io.Reader) ([]byte, error) {
+func unpackBin32(r io.Reader) ([]byte, error) {
 	var len uint32
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
@@ -712,13 +711,11 @@ func UnpackBin32(r io.Reader) ([]byte, error) {
 	return unpackBinBody(r, int(len))
 }
 
-// UnpackArray4 reads an array object with length of 4 bits from readder.
-func UnpackArray4(r io.Reader, len int) (interface{}, error) {
+func unpackArray4(r io.Reader, len int) (interface{}, error) {
 	return unpackArrayBody(r, len)
 }
 
-// UnpackArray16 reads an array object with length of 16 bits from readder.
-func UnpackArray16(r io.Reader) (interface{}, error) {
+func unpackArray16(r io.Reader) (interface{}, error) {
 	var len uint16
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
@@ -726,8 +723,7 @@ func UnpackArray16(r io.Reader) (interface{}, error) {
 	return unpackArrayBody(r, int(len))
 }
 
-// UnpackArray32 reads an array object with length of 32 bits from readder.
-func UnpackArray32(r io.Reader) (interface{}, error) {
+func unpackArray32(r io.Reader) (interface{}, error) {
 	var len uint32
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
@@ -735,13 +731,11 @@ func UnpackArray32(r io.Reader) (interface{}, error) {
 	return unpackArrayBody(r, int(len))
 }
 
-// UnpackMap4 reads an map object with length of 4 bits from readder.
-func UnpackMap4(r io.Reader, len int) (interface{}, error) {
+func unpackMap4(r io.Reader, len int) (interface{}, error) {
 	return unpackMapBody(r, len)
 }
 
-// UnpackMap16 reads an map object with length of 16 bits from readder.
-func UnpackMap16(r io.Reader) (interface{}, error) {
+func unpackMap16(r io.Reader) (interface{}, error) {
 	var len uint16
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
@@ -749,8 +743,7 @@ func UnpackMap16(r io.Reader) (interface{}, error) {
 	return unpackMapBody(r, int(len))
 }
 
-// UnpackMap32 reads an map object with length of 32 bits from readder.
-func UnpackMap32(r io.Reader) (interface{}, error) {
+func unpackMap32(r io.Reader) (interface{}, error) {
 	var len uint32
 	if err := binary.Read(r, binary.BigEndian, &len); err != nil {
 		return nil, err
@@ -770,7 +763,7 @@ func unpackStringBody(r io.Reader, len int) (string, error) {
 		return "", err
 	}
 	if n != len {
-		return "", errors.New("msgp: broken string format family was found.")
+		return "", errors.New("msgp: broken string format family was found")
 	}
 
 	return string(str), nil
@@ -788,7 +781,7 @@ func unpackBinBody(r io.Reader, len int) ([]byte, error) {
 		return nil, err
 	}
 	if n != len {
-		return nil, errors.New("msgp: broken binary format family was found.")
+		return nil, errors.New("msgp: broken binary format family was found")
 	}
 
 	return bin, nil
