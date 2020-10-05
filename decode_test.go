@@ -197,21 +197,21 @@ func ExampleUnpackValue_bool() {
 	PackValue(&buf, nil)
 	PackValue(&buf, true)
 
-	err = UnpackValue(&buf, &val)
+	err = UnpackBool(&buf, &val)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	} else {
 		fmt.Printf("%v\n", val)
 	}
 
-	err = UnpackValue(&buf, &val)
+	err = UnpackBool(&buf, &val)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	} else {
 		fmt.Printf("%v\n", val)
 	}
 
-	err = UnpackValue(&buf, &val)
+	err = UnpackBool(&buf, &val)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	} else {
@@ -248,33 +248,33 @@ func ExampleUnpackValue_int() {
 	var unknown interface{}
 
 	PackInt(&buf, 0x7f)
-	UnpackValue(&buf, &i8)
+	UnpackInt(&buf, &i8)
 	fmt.Printf("%x\n", i8)
 	PackInt(&buf, 0x7fff)
-	UnpackValue(&buf, &i16)
+	UnpackInt(&buf, &i16)
 	fmt.Printf("%x\n", i16)
 	PackInt(&buf, 0x7fffffff)
-	UnpackValue(&buf, &i32)
+	UnpackInt(&buf, &i32)
 	fmt.Printf("%x\n", i32)
 	PackInt(&buf, 0x7fffffffffffffff)
-	UnpackValue(&buf, &i64)
+	UnpackInt(&buf, &i64)
 	fmt.Printf("%x\n", i64)
 
 	PackUint(&buf, 0xff)
-	UnpackValue(&buf, &ui8)
+	UnpackUint(&buf, &ui8)
 	fmt.Printf("%x\n", ui8)
 	PackUint(&buf, 0xffff)
-	UnpackValue(&buf, &ui16)
+	UnpackUint(&buf, &ui16)
 	fmt.Printf("%x\n", ui16)
 	PackUint(&buf, 0xffffffff)
-	UnpackValue(&buf, &ui32)
+	UnpackUint(&buf, &ui32)
 	fmt.Printf("%x\n", ui32)
 	PackUint(&buf, 0xffffffffffffffff)
-	UnpackValue(&buf, &ui64)
+	UnpackUint(&buf, &ui64)
 	fmt.Printf("%x\n", ui64)
 
 	PackNil(&buf)
-	err = UnpackValue(&buf, &i)
+	err = UnpackInt(&buf, &i)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -282,7 +282,7 @@ func ExampleUnpackValue_int() {
 	}
 
 	PackNil(&buf)
-	err = UnpackValue(&buf, &ui)
+	err = UnpackUint(&buf, &ui)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -323,21 +323,21 @@ func ExampleUnpackValue_float() {
 	PackValue(&buf, nil)
 	PackValue(&buf, 3.14)
 
-	err = UnpackValue(&buf, &f32)
+	err = UnpackFloat(&buf, &f32)
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		fmt.Printf("%v\n", f32)
 	}
 
-	err = UnpackValue(&buf, &f64)
+	err = UnpackFloat(&buf, &f64)
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		fmt.Printf("%v\n", f64)
 	}
 
-	err = UnpackValue(&buf, &f64)
+	err = UnpackFloat(&buf, &f64)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -365,7 +365,7 @@ func ExampleUnpackValue_string() {
 	var unknown interface{}
 
 	PackString(&buf, "test string")
-	err = UnpackValue(&buf, &str)
+	err = UnpackString(&buf, &str)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -373,7 +373,7 @@ func ExampleUnpackValue_string() {
 	}
 
 	PackString(&buf, "012345678901234567890123456789012")
-	err = UnpackValue(&buf, &str)
+	err = UnpackString(&buf, &str)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -381,7 +381,7 @@ func ExampleUnpackValue_string() {
 	}
 
 	PackArray(&buf, []byte("0123456789"))
-	err = UnpackValue(&buf, &str)
+	err = UnpackString(&buf, &str)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -389,7 +389,7 @@ func ExampleUnpackValue_string() {
 	}
 
 	PackNil(&buf)
-	err = UnpackValue(&buf, &str)
+	err = UnpackString(&buf, &str)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -419,63 +419,63 @@ func ExampleUnpackValue_string() {
 func ExampleUnpackValue_array() {
 	var err error
 	var buf bytes.Buffer
-	var val []int
-	var val16 []int16
-	var val32 [10]int32
+	var is []int
+	var i16s []int16
+	var i32a [10]int32
 	var strs []string
 	var bin []byte
 	var unknown interface{}
 
 	PackValue(&buf, []int8{1, 2, 3, 4, 5, 6, 7, 8, 9})
-	err = UnpackValue(&buf, &val)
+	err = UnpackSlice(&buf, &is)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", val)
+		fmt.Printf("%v\n", is)
 	}
 
 	PackValue(&buf, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9})
-	err = UnpackValue(&buf, &val)
+	err = UnpackSlice(&buf, &is)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", val)
+		fmt.Printf("%v\n", is)
 	}
 
 	PackValue(&buf, []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9})
-	err = UnpackValue(&buf, &val16)
+	err = UnpackSlice(&buf, &i16s)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", val16)
+		fmt.Printf("%v\n", i16s)
 	}
 
 	PackValue(&buf, []int16{1, 2, 3, 4, 5})
-	err = UnpackValue(&buf, &val32)
+	err = UnpackArray(&buf, &i32a)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", val32)
+		fmt.Printf("%v\n", i32a)
 	}
 
 	PackValue(&buf, nil)
-	err = UnpackValue(&buf, &val)
+	err = UnpackSlice(&buf, &is)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", val)
+		fmt.Printf("%v\n", is)
 	}
 
 	PackValue(&buf, nil)
-	err = UnpackValue(&buf, &val32)
+	err = UnpackArray(&buf, &i32a)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		fmt.Printf("%v\n", val32)
+		fmt.Printf("%v\n", i32a)
 	}
 
 	PackValue(&buf, []string{"aaa", "bbb", "ccc"})
-	err = UnpackValue(&buf, &strs)
+	err = UnpackSlice(&buf, &strs)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -483,17 +483,17 @@ func ExampleUnpackValue_array() {
 	}
 
 	PackValue(&buf, []byte{1, 2, 3, 4, 5, 6})
-	err = UnpackValue(&buf, &bin)
+	err = UnpackSlice(&buf, &bin)
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		fmt.Printf("%v\n", bin)
 	}
 
-	var arr2d [][]byte
-	src := [][]byte{{1, 2}, {3, 4}, {5, 6}}
+	var arr2d [][]int
+	src := [][]int{{1, 2}, {3, 4}, {5, 6}}
 	PackValue(&buf, src)
-	err = UnpackValue(&buf, &arr2d)
+	err = UnpackSlice(&buf, &arr2d)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -529,7 +529,7 @@ func ExampleUnpackValue_map() {
 	var unknown interface{}
 
 	PackValue(&buf, map[string]int16{"a": 1, "b": 2})
-	err = UnpackValue(&buf, &msi)
+	err = UnpackMap(&buf, &msi)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -538,7 +538,7 @@ func ExampleUnpackValue_map() {
 
 	src := map[string]map[string]int{"first": map[string]int{"sub1": 1}, "second": map[string]int{"sub2": 2}}
 	PackValue(&buf, src)
-	err = UnpackValue(&buf, &mapmap)
+	err = UnpackMap(&buf, &mapmap)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -567,7 +567,7 @@ func ExampleUnpackValue_pointer() {
 	PackValue(&buf, nil)
 	PackValue(&buf, "some text")
 
-	err = UnpackValue(&buf, &ptr)
+	err = UnpackPtr(&buf, &ptr)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -578,7 +578,7 @@ func ExampleUnpackValue_pointer() {
 		}
 	}
 
-	err = UnpackValue(&buf, &ptr)
+	err = UnpackPtr(&buf, &ptr)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -614,14 +614,14 @@ func ExampleUnpackValue_struct() {
 	PackValue(&buf, src)
 	PackValue(&buf, src)
 
-	err = UnpackValue(&buf, &st)
+	err = UnpackStruct(&buf, &st)
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		fmt.Printf("%v\n", st)
 	}
 
-	err = UnpackValue(&buf, &stp)
+	err = UnpackPtr(&buf, &stp)
 	if err != nil {
 		fmt.Println(err)
 	} else {
@@ -632,14 +632,14 @@ func ExampleUnpackValue_struct() {
 		}
 	}
 
-	err = UnpackValue(&buf, &st)
+	err = UnpackStruct(&buf, &st)
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		fmt.Printf("%v\n", st)
 	}
 
-	err = UnpackValue(&buf, &stp)
+	err = UnpackPtr(&buf, &stp)
 	if err != nil {
 		fmt.Println(err)
 	} else {
