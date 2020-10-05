@@ -55,11 +55,25 @@ err = UnpackValue(&buf, &ia)
 var msi map[string]int
 err = UnpackValue(&buf, &msi)
 
-// Pointer (of pointer)
-var ptr *string
-err = UnpackValue(&buf, &ptr)
+// Struct
+type myStruct struct {
+    AAA string
+    BBB int
+    CCC string `msgp:"ccc"`
+    DDD int    `msgp:"-"`
+    FFF int32  `msgp:"-,omitempty"`
+    GGG int32  `msgp:",omitempty"`
+    HHH int32  `msgp:",string"`
+    III int32  `msgp:",omitempty"`
+}
+var st myStruct
+err = UnpackValue(&buf, &st)
 
 // Unknown type
 var unknown interface{}
 err = UnpackValue(&buf, &unknown)
+
+// Pointer (of pointer)
+var ptr *string
+err = UnpackValue(&buf, &ptr)
 </code></pre>
